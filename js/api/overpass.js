@@ -142,14 +142,21 @@ export async function budgetPlaces(center, radiusM = 1500) {
   // Bewusst keine Namenssuche (z. B. name~"Tafel"): die zwingt den Server, jedes
   // benannte Objekt im Umkreis zu prüfen, und führt in Innenstädten zu 502/Timeouts.
   // Bahnhofsmission, Tafeln & Co. sind in OSM als social_facility eingetragen.
+  // Kein Ergebnis-Limit: Overpass sortiert nicht nach Entfernung, ein Limit würde
+  // beliebige (auch nahe) Orte abschneiden. Supermärkte nur Discounter, damit
+  // hunderte normale Märkte die Antwort nicht aufblähen.
+  const disc = "Aldi|Lidl|Netto|Penny|Norma|Kaufland|nah ?& ?gut|diska|NP";
   const ql = `[out:json][timeout:25];
 (
   nwr["amenity"~"^(drinking_water|water_point|toilets|shower|device_charging_station|food_sharing|give_box|shelter|social_facility|library|fast_food|canteen)$"]${a};
-  nwr["shop"~"^(supermarket|bakery)$"]${a};
+  nwr["social_facility"]${a};
+  nwr["shop"="supermarket"]["brand"~"${disc}",i]${a};
+  nwr["shop"="supermarket"]["name"~"${disc}",i]${a};
+  nwr["shop"="bakery"]${a};
   nwr["internet_access"~"^(wlan|yes|wifi|public)$"]["internet_access:fee"="no"]${a};
   nwr["power_supply"="yes"]${a};
 );
-out center tags 400;`;
+out center tags;`;
   return elements(await query(ql), center);
 }
 

@@ -9,7 +9,7 @@ import { suggestRoundtrip } from "../js/planner/roundtrip.js";
 import { estimatePrice } from "../js/planner/accommodation.js";
 import { prepareDepartures, groupOf } from "../js/planner/departures.js";
 import { hikingInfo, libraryInfo, waymarkedLink, endpointOrder } from "../js/api/overpass.js";
-import { classify } from "../js/planner/budget.js";
+import { classify, ohDe } from "../js/planner/budget.js";
 
 const A = P("Hamburg Hbf", 53.55, 10.0), B = P("Uelzen", 52.97, 10.55), C = P("Hannover Hbf", 52.38, 9.74),
   D = P("Göttingen", 51.54, 9.93), E = P("Würzburg Hbf", 49.8, 9.94);
@@ -186,7 +186,8 @@ test("Unterwegs-Modus: Orte richtig einordnen", () => {
   const cafe = classify({ amenity: "cafe", internet_access: "wlan", "internet_access:fee": "no" });
   assert.equal(cafe.cat, "wifi");
   const lib = classify({ amenity: "library", internet_access: "wlan" });
-  assert.equal(lib.cat, "wifi");
+  assert.equal(lib.cat, "library");
+  assert.ok(lib.extras.includes("wifi"));
   assert.ok(lib.extras.includes("power?"));
   const mc = classify({ amenity: "fast_food", brand: "McDonald's", internet_access: "wlan", "internet_access:fee": "no" });
   assert.equal(mc.cat, "cheapfood");
@@ -197,4 +198,38 @@ test("Unterwegs-Modus: Orte richtig einordnen", () => {
 test("Overpass: zuletzt erfolgreicher Server zuerst", () => {
   assert.deepEqual(endpointOrder(["a", "b", "c"], 0), ["a", "b", "c"]);
   assert.deepEqual(endpointOrder(["a", "b", "c"], 2), ["c", "a", "b"]);
+});
+
+test("Unterwegs-Modus: typische Fehlerquellen", () => {
+  // Tagespflege, Pflegeheim, Frauenhaus sind keine Obdachlosenhilfe
+  assert.equal(classify({ amenity: "social_facility", social_facility: "day_care", "social_facility:for": "senior" }), null);
+  assert.equal(classify({ amenity: "social_facility", social_facility: "shelter", "social_facility:for": "woman" }), null);
+  assert.equal(classify({ amenity: "social_facility", social_facility: "day_care", "social_facility:for": "homeless" }).note, "Tagesaufenthalt/Wärmestube");
+  // Nicht öffentlich
+  assert.equal(classify({ amenity: "toilets", access: "customers" }), null);
+  assert.equal(classify({ amenity: "shower", access: "private" }), null);
+  assert.equal(classify({ amenity: "canteen", access: "employees" }), null);
+  // Wasser
+  assert.equal(classify({ amenity: "water_point" }), null);
+  assert.equal(classify({ amenity: "water_point", drinking_water: "yes" }).cat, "water");
+  assert.equal(classify({ amenity: "drinking_water", drinking_water: "no" }), null);
+  assert.match(classify({ amenity: "drinking_water", seasonal: "yes" }).note, /saisonal/);
+  // Gebühr unbekannt ist nicht „kostenlos“
+  assert.equal(classify({ amenity: "device_charging_station" }).free, false);
+  assert.equal(classify({ amenity: "device_charging_station", fee: "no" }).free, true);
+  // Tafel ist keine Suppenküche
+  assert.match(classify({ amenity: "social_facility", name: "Frankfurter Tafel" }).note, /Tafel/);
+  // E-Auto-Ladesäule mit Schuko ist keine Handy-Steckdose
+  assert.equal(classify({ amenity: "charging_station", "socket:schuko": "1" }), null);
+  // Bibliothek ohne WLAN-Angabe: eigene Kategorie, ehrlicher Hinweis
+  const lib = classify({ amenity: "library" });
+  assert.equal(lib.cat, "library");
+  assert.match(lib.note, /Bibliotheksausweis/);
+});
+
+test("Öffnungszeiten eindeutschen", () => {
+  assert.equal(ohDe("Th, Fr 14:30-17:30; Su 14:30-16:30"), "Do, Fr 14:30–17:30; So 14:30–16:30");
+  assert.equal(ohDe("Mo-Fr 08:00-18:00; PH off"), "Mo-Fr 08:00–18:00; Feiertag geschlossen");
+  assert.equal(ohDe("24/7"), "rund um die Uhr");
+  assert.equal(ohDe(""), null);
 });

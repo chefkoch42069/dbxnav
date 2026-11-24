@@ -1,12 +1,12 @@
 // Reiter „Unterwegs“: kostenlos & billig rund um einen Bahnhof oder den Standort –
 // Essen, Strom, WLAN, Wasser, Toiletten, Duschen, Hilfe. Daten aus OpenStreetMap.
-import { el, clear, toast, busy, spinnerLine, errorLine, extLink, osmLink } from "./dom.js";
+import { el, clear, toast, spinnerLine, errorLine, extLink, osmLink } from "./dom.js";
 import { placeInput } from "./placeInput.js";
 import { map, groups, fitPoints, focusOn, pinIcon } from "./map.js";
 import { nav } from "./nav.js";
 import { state, addFavorite } from "../state.js";
 import { budgetPlaces } from "../api/overpass.js";
-import { BUDGET_CATS, classify, extraLabel } from "../planner/budget.js";
+import { BUDGET_CATS, classify, extraLabel, ohDe } from "../planner/budget.js";
 
 const ORDER = Object.keys(BUDGET_CATS);
 let active = new Set(ORDER);
@@ -14,6 +14,7 @@ let onlyFree = false;
 let items = [];
 let center = null;
 let resultBox;
+let searchId = 0; // verhindert, dass eine ältere Antwort eine neuere überschreibt
 
 const walkLink = (from, to) =>
   `https://www.openstreetmap.org/directions?engine=fossgis_osrm_foot&route=${from.lat},${from.lon};${to.lat},${to.lon}`;
@@ -43,8 +44,8 @@ function itemRow(it, from, m) {
     el("div", { class: "grow" },
       el("strong", {}, `${c.icon} ${t.name || t.brand || c.label}`),
       el("span", { class: "muted small" }, [it.c.note, meta].filter(Boolean).join(" · ")),
-      t.opening_hours ? el("span", { class: "muted small" }, `🕒 ${t.opening_hours}`) : null),
-    el("a", { class: "btn small", href: walkLink(from, it), target: "_blank", rel: "noopener", title: "Fußweg bei OpenStreetMap" }, "🚶"),
+      t.opening_hours ? el("span", { class: "muted small" }, `🕒 ${ohDe(t.opening_hours)}`) : null),
+    el("a", { class: "btn small", href: walkLink(from, it), target: "_blank", rel: "noopener", title: "Fußweg bei OpenStreetMap", "aria-label": "Fußweg bei OpenStreetMap" }, "🚶"),
     el("button", { class: "btn small", onclick: () => { focusOn(it.lat, it.lon, 17); m?.openPopup(); } }, "Karte"));
 }
 
@@ -55,7 +56,7 @@ function popup(it, from) {
     el("strong", {}, `${c.icon} ${t.name || c.label}`), el("br"),
     it.c.note ? [it.c.note, el("br")] : null,
     it.c.extras.length ? [it.c.extras.map(extraLabel).join(" · "), el("br")] : null,
-    t.opening_hours ? [`🕒 ${t.opening_hours}`, el("br")] : null,
+    t.opening_hours ? [`🕒 ${ohDe(t.opening_hours)}`, el("br")] : null,
     extLink(walkLink(from, it), "Fußweg"), " · ", extLink(osmLink(it.lat, it.lon), "OSM"), el("br"),
     el("button", { class: "btn small", onclick: () => toast(addFavorite({ name: t.name || c.label, lat: it.lat, lon: it.lon }, c.label) ? "Gemerkt" : "Schon gemerkt") }, "☆ Merken"));
 }
@@ -85,7 +86,7 @@ export function budgetPanel(place) {
 }
 
 export function initBudgetTab(root) {
-  const where = placeInput({ label: "Wo bist du?", id: "budget-where", value: state.prefs.home, onSelect: (p) => search(p) });
+  const where = placeInput({ label: "Wo bist du?", id: "budget-where", value: state.prefs.home, snapToStop: false, onSelect: (p) => search(p) });
   const radius = el("select", { onchange: () => center && search(center) },
     [[500, "500 m"], [1500, "1,5 km"], [3000, "3 km"]].map(([v, t]) => el("option", { value: v, selected: v === 1500 }, t)));
   const hereBtn = el("button", { class: "btn" }, "Kartenmitte");
@@ -105,15 +106,18 @@ export function initBudgetTab(root) {
   resultBox = el("div");
 
   async function search(p) {
+    const id = ++searchId;
     center = p;
     where.value = p;
     clear(resultBox).append(spinnerLine(`Suche rund um ${p.name} …`));
     groups.places.clearLayers();
     try {
-      items = prepareBudget(await budgetPlaces(p, +radius.value));
+      const raw = await budgetPlaces(p, +radius.value);
+      if (id !== searchId) return; // inzwischen neue Suche gestartet
+      items = prepareBudget(raw);
       render(true);
     } catch (e) {
-      clear(resultBox).append(errorLine(e));
+      if (id === searchId) clear(resultBox).append(errorLine(e));
     }
   }
 
@@ -130,7 +134,7 @@ export function initBudgetTab(root) {
     el("details", {}, el("summary", {}, "Tipps"),
       el("ul", { class: "small" },
         el("li", {}, "Bahnhofsmission: an über 100 Bahnhöfen, kostenlos, für alle – ", extLink("https://www.bahnhofsmission.de/", "bahnhofsmission.de")),
-        el("li", {}, "Bibliotheken: warm, trocken, WLAN und meist Steckdosen – ohne Ausweis nutzbar."),
+        el("li", {}, "Bibliotheken: Aufenthalt meist ohne Ausweis – warm, trocken, oft Steckdosen. WLAN gibt es teils nur mit Bibliotheksausweis (oft günstig oder kostenlos)."),
         el("li", {}, "Bäckereien geben abends oft Reste günstiger ab; viele Ketten haben Gratis-WLAN."),
         el("li", {}, "Im Winter: Kältehilfe/Kältebus der Stadt – oft über die Bahnhofsmission erreichbar."),
         el("li", {}, "Notfall: 112. Die Daten stammen aus OpenStreetMap und können veraltet sein."))));

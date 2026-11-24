@@ -2,7 +2,7 @@
 import { el, toast } from "./dom.js";
 import { geocode, reverseStop } from "../api/transitous.js";
 
-export function placeInput({ label, placeholder = "Bahnhof oder Ort", value = null, onSelect, stopsOnly = false, id }) {
+export function placeInput({ label, placeholder = "Bahnhof oder Ort", value = null, onSelect, stopsOnly = false, snapToStop = true, id }) {
   let selected = value;
   let ctrl;
   let results = [];
@@ -65,6 +65,8 @@ export function placeInput({ label, placeholder = "Bahnhof oder Ort", value = nu
     locate.textContent = "…";
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
+        const here = { name: "Mein Standort", lat: pos.coords.latitude, lon: pos.coords.longitude };
+        if (!snapToStop) { locate.textContent = "📍"; return choose(here); }
         try {
           const s = await reverseStop(pos.coords.latitude, pos.coords.longitude);
           choose(s || { name: "Mein Standort", lat: pos.coords.latitude, lon: pos.coords.longitude });
