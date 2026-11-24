@@ -8,7 +8,7 @@ import { combineReachability } from "../js/planner/daytrip.js";
 import { suggestRoundtrip } from "../js/planner/roundtrip.js";
 import { estimatePrice } from "../js/planner/accommodation.js";
 import { prepareDepartures, groupOf } from "../js/planner/departures.js";
-import { hikingInfo, libraryInfo, waymarkedLink, endpointOrder } from "../js/api/overpass.js";
+import { hikingInfo, libraryInfo, waymarkedLink, endpointOrder, bboxAround, budgetQuery } from "../js/api/overpass.js";
 import { classify, ohDe } from "../js/planner/budget.js";
 
 const A = P("Hamburg Hbf", 53.55, 10.0), B = P("Uelzen", 52.97, 10.55), C = P("Hannover Hbf", 52.38, 9.74),
@@ -232,4 +232,14 @@ test("Öffnungszeiten eindeutschen", () => {
   assert.equal(ohDe("Mo-Fr 08:00-18:00; PH off"), "Mo-Fr 08:00–18:00; Feiertag geschlossen");
   assert.equal(ohDe("24/7"), "rund um die Uhr");
   assert.equal(ohDe(""), null);
+});
+
+test("Unterwegs-Abfrage: Rechteck statt around, keine Namenssuche über alles", () => {
+  const bb = bboxAround({ lat: 50.1071, lon: 8.6638 }, 1500).split(",").map(Number);
+  assert.ok(Math.abs(bb[2] - bb[0] - 0.02695) < 0.0002); // 2 × 1,5 km in Breitengrad
+  assert.ok(bb[3] - bb[1] > bb[2] - bb[0]); // in Längengrad breiter (Deutschland)
+  const q = budgetQuery(bb.join(","));
+  assert.match(q, /\[bbox:50\.0936/);
+  assert.doesNotMatch(q, /around/);
+  assert.doesNotMatch(q, /^\s*nwr\["name"/m);
 });

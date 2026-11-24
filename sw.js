@@ -1,5 +1,5 @@
 // Service Worker: App offline verfügbar, Kacheln zwischenspeichern (begrenzt), API-Antworten als Rückfall.
-const VERSION = "v5";
+const VERSION = "v6";
 const SHELL = `shell-${VERSION}`;
 const TILES = "tiles";
 const API = "api";
@@ -66,11 +66,19 @@ async function networkFirst(req) {
   }
 }
 
-async function staleWhileRevalidate(req) {
+// Eigene Dateien: erst Netz (immer die aktuelle Version), offline aus dem Cache.
+// Vorher stale-while-revalidate – das lieferte nach einem Update beim ersten Laden noch alten Code.
+async function appNetworkFirst(req) {
   const c = await caches.open(SHELL);
-  const hit = await c.match(req, { ignoreSearch: true });
-  const net = fetch(req).then((res) => { if (res.ok) c.put(req, res.clone()); return res; }).catch(() => hit);
-  return hit || net;
+  try {
+    const res = await fetch(req, { cache: "no-cache" });
+    if (res.ok) c.put(req, res.clone());
+    return res;
+  } catch (err) {
+    const hit = await c.match(req, { ignoreSearch: true });
+    if (hit) return hit;
+    throw err;
+  }
 }
 
 self.addEventListener("fetch", (e) => {
@@ -79,5 +87,5 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (TILE_HOSTS.some((h) => url.hostname.endsWith(h))) return e.respondWith(tileFirst(req));
   if (API_HOSTS.includes(url.hostname)) return e.respondWith(networkFirst(req));
-  if (url.origin === self.location.origin) return e.respondWith(staleWhileRevalidate(req));
+  if (url.origin === self.location.origin) return e.respondWith(appNetworkFirst(req));
 });

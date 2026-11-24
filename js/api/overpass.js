@@ -30,9 +30,11 @@ export async function query(ql) {
     }
   }
   console.warn("Overpass:", errors);
-  throw new Error(
+  const err = new Error(
     "OpenStreetMap-Server (Overpass) sind gerade überlastet oder nicht erreichbar. Kleineren Umkreis wählen oder in einer Minute nochmal probieren."
   );
+  err.details = errors;
+  throw err;
 }
 
 function elements(res, center) {
@@ -137,27 +139,40 @@ out center tags 60;`;
 }
 
 // ---- Unterwegs-Modus: kostenlos & billig ----
-export async function budgetPlaces(center, radiusM = 1500) {
-  const a = `(around:${radiusM},${center.lat},${center.lon})`;
-  // Bewusst keine Namenssuche (z. B. name~"Tafel"): die zwingt den Server, jedes
-  // benannte Objekt im Umkreis zu prüfen, und führt in Innenstädten zu 502/Timeouts.
-  // Bahnhofsmission, Tafeln & Co. sind in OSM als social_facility eingetragen.
-  // Kein Ergebnis-Limit: Overpass sortiert nicht nach Entfernung, ein Limit würde
-  // beliebige (auch nahe) Orte abschneiden. Supermärkte nur Discounter, damit
-  // hunderte normale Märkte die Antwort nicht aufblähen.
+/** Rechteck um einen Punkt: „süd,west,nord,ost“ für Overpass. */
+export function bboxAround(center, radiusM) {
+  const dLat = radiusM / 111320;
+  const dLon = radiusM / (111320 * Math.cos((center.lat * Math.PI) / 180));
+  const r = (v) => v.toFixed(5);
+  return `${r(center.lat - dLat)},${r(center.lon - dLon)},${r(center.lat + dLat)},${r(center.lon + dLon)}`;
+}
+
+export function budgetQuery(bbox) {
+  // Rechteck (bbox) statt around: läuft über den räumlichen Index und ist für Overpass
+  // deutlich billiger, besonders bei Gebäudeflächen und Wegen → weniger 502/504.
+  // Keine Namenssuche über alle Objekte, kein Ergebnis-Limit (Overpass sortiert nicht nach Nähe).
   const disc = "Aldi|Lidl|Netto|Penny|Norma|Kaufland|nah ?& ?gut|diska|NP";
-  const ql = `[out:json][timeout:25];
+  return `[out:json][timeout:25][bbox:${bbox}];
 (
-  nwr["amenity"~"^(drinking_water|water_point|toilets|shower|device_charging_station|food_sharing|give_box|shelter|social_facility|library|fast_food|canteen)$"]${a};
-  nwr["social_facility"]${a};
-  nwr["shop"="supermarket"]["brand"~"${disc}",i]${a};
-  nwr["shop"="supermarket"]["name"~"${disc}",i]${a};
-  nwr["shop"="bakery"]${a};
-  nwr["internet_access"~"^(wlan|yes|wifi|public)$"]["internet_access:fee"="no"]${a};
-  nwr["power_supply"="yes"]${a};
+  nwr["amenity"~"^(drinking_water|water_point|toilets|shower|device_charging_station|food_sharing|give_box|shelter|social_facility|library|fast_food|canteen)$"];
+  nwr["social_facility"];
+  nwr["shop"="supermarket"]["brand"~"${disc}",i];
+  nwr["shop"="supermarket"]["name"~"${disc}",i];
+  nwr["shop"="bakery"];
+  nwr["internet_access"~"^(wlan|yes|wifi|public)$"]["internet_access:fee"="no"];
+  nwr["power_supply"="yes"];
 );
 out center tags;`;
-  return elements(await query(ql), center);
+}
+
+/**
+ * Kostenlose & billige Orte. Entweder Umkreis um center (radiusM) oder ein
+ * fertiges Rechteck (bounds = sichtbarer Kartenausschnitt).
+ */
+export async function budgetPlaces(center, radiusM = 1500, bounds = null) {
+  const res = await query(budgetQuery(bounds || bboxAround(center, radiusM)));
+  const all = elements(res, center);
+  return bounds ? all : all.filter((e) => e.dist * 1000 <= radiusM); // Ecken des Rechtecks abschneiden
 }
 
 export function sightCategory(tags) {
