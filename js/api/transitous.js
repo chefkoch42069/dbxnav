@@ -41,6 +41,29 @@ export async function plan(from, to, isoTime, { arriveBy = false, numItineraries
   return res?.itineraries || [];
 }
 
+/**
+ * Verbindungssuche mit allen Optionen und Blättern (früher/später).
+ * @returns {Promise<{itineraries:Array, nextPageCursor?:string, previousPageCursor?:string}>}
+ */
+export async function searchConnections(from, to, isoTime, {
+  arriveBy = false, pageCursor = null, via = null, maxTransfers = TRANSITOUS.maxTransfers,
+  transferTimeFactor = 1, wheelchair = false, modes = TRANSITOUS.dticketModes, numItineraries = 5,
+} = {}) {
+  const res = await getJSON(
+    `${B}/api/v5/plan?${qs({
+      fromPlace: ll(from), toPlace: ll(to),
+      time: pageCursor ? undefined : isoTime, arriveBy, pageCursor: pageCursor || undefined,
+      via: via ? ll(via) : undefined, viaMinimumStay: via ? 0 : undefined,
+      transitModes: modes.join(","), maxTransfers,
+      transferTimeFactor: transferTimeFactor !== 1 ? transferTimeFactor : undefined,
+      pedestrianProfile: wheelchair ? "WHEELCHAIR" : undefined,
+      numItineraries, maxTravelTime: 24 * 60,
+    })}`,
+    { timeout: 45000 }
+  );
+  return { itineraries: res?.itineraries || [], nextPageCursor: res?.nextPageCursor, previousPageCursor: res?.previousPageCursor };
+}
+
 export async function oneToAll(place, isoTime, { maxMinutes = 180, arriveBy = false, maxTransfers = 4, signal, modes = TRANSITOUS.railModes } = {}) {
   return getJSON(
     `${B}/api/v1/one-to-all?${qs({

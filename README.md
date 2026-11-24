@@ -70,6 +70,14 @@ Für alle Reisearten:
 - **Wetter** am Etappenort (DWD-Daten über Bright Sky) und **Regenradar** des DWD als Kartenebene.
 - Links zum Gegenprüfen bei **bahn.de/DB Navigator** und zu **direkt.bahn.guru** („Wohin komme ich direkt?“).
 
+**Verbindung**: Start und Ziel eingeben → Verbindungen nur mit Zügen, Bussen und Bahnen, die mit dem Deutschlandticket gehen.
+- Abfahrt oder Ankunft, „über“ einen Bahnhof, Umstiege begrenzen, nur Bahn, mehr Umstiegszeit, barrierefrei
+- Früher/später blättern, schnellste und umstiegsärmste Verbindung markiert, Details mit Karte
+- Optional ICE/IC zum Vergleich (ausgegraut, z. B. „wärst ca. 1 h 13 min schneller“)
+- Rückfahrt mit einem Klick, letzte Verbindung des Tages, bei DB gegenprüfen, „Bin ich gefahren“ (Sammler + Tagebuch)
+- Letzte Suchen, Sprung aus Abfahrtstafel („Verbindung von hier“) und Merkliste („Hin“)
+- Fahrradmitnahme fehlt bewusst: Die deutschen Fahrplandaten enthalten sie meist nicht, die Suche würde fälschlich „keine Verbindung“ melden.
+
 **International (Interrail Global Pass)**:
 - Länderkarte: wo der Pass gilt (grün), Wohnland (gelb, nur je eine Fahrt hinaus und zurück), Länder außerhalb (grau).
 - „Erreichbare Ziele zeigen“: Fernbahnhöfe in Europa, die man ab dem Start in X Stunden erreicht. Antippen fügt das Ziel zur Tour hinzu.

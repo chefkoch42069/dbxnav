@@ -71,6 +71,7 @@ async function open(p) {
   infoBox.replaceChildren(el("div", { class: "btns" },
     el("button", { class: "btn small", onclick: () => toast(addFavorite(p, "Bahnhof") ? "Gemerkt" : "Schon gemerkt") }, "☆ Merken"),
     el("button", { class: "btn small", onclick: () => { nav.plan.setStart(p); nav.switchTab("plan"); toast(`Start: ${p.name}`); } }, "Als Start"),
+    el("button", { class: "btn small", onclick: () => nav.route.open({ from: p }) }, "🔀 Verbindung von hier"),
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Infos am Bahnhof ${p.name}`), stationPanel(p))); } }, "Bahnhofs-Infos"),
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Wanderwege um ${p.name}`), hikingPanel(p))); } }, "🥾 Wanderwege"),
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Bibliotheken um ${p.name}`), libraryPanel(p))); } }, "📚 Bibliotheken"),
