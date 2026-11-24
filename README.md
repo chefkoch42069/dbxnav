@@ -34,7 +34,8 @@ Danach läuft die App unter `https://<benutzer>.github.io/dbxnav/`, mit HTTPS. D
 
 ## Ortsdaten
 
-Unterkünfte, Bahnhofs-Infos, Bibliotheken und der Unterwegs-Modus lesen vorab erzeugte Daten aus `data/poi/`.
+Unterkünfte, Bahnhofs-Infos, Bibliotheken und der Homeless-Modus lesen vorab erzeugte Daten aus `data/poi/`.
+Parks als Multipolygon-Relation fehlen darin; die ergänzt der Homeless-Modus live über Overpass.
 Das geht schnell, braucht keinen fremden Server und funktioniert offline. Fehlen die Daten, etwa beim lokalen Start, fragt die App wie bisher Overpass.
 Ausflugsziele und Wanderwege-Liste kommen weiterhin live von Overpass.
 
@@ -85,10 +86,43 @@ U-Bahn, Tram, Bus und Fähre, auch von Haltestellen direkt am Bahnhof. Filter je
 Gleis, Fernverkehr optional ausgegraut. Antippen zeigt den Fahrtverlauf auf der Karte, und von jedem Halt kann man
 weiter zu dessen Abfahrten springen. Ein langer Druck bzw. Rechtsklick auf die Karte wählt die nächste Haltestelle.
 
-**Unterwegs**: kostenlos & billig rund um einen Bahnhof, den echten Standort oder die Kartenmitte – Bahnhofsmission und
-Angebote für Wohnungslose, Tafeln/Suppenküchen/Foodsharing-Fairteiler, Discounter/Bäcker/Imbiss, Handy-Ladestationen,
-Gratis-WLAN, Bibliotheken, Trinkwasser, Toiletten, Duschen, Schutzhütten, Verschenkregale. Filter je Kategorie,
-„nur kostenlose“, Öffnungszeiten auf Deutsch, Fußweg-Link. Auch als Abschnitt bei jedem Übernachtungsort und Tagesziel.
+**Stadt**: Stadt eingeben (z. B. Koblenz) → der Hauptbahnhof wird gesucht (andere Bahnhöfe der Stadt zum Umschalten),
+die Karte wechselt auf die ÖPNVKarte mit 500-m-Kreis. Gezeigt werden alle Linien nach Verkehrsmittel (mit Hauptzielen),
+die Zahl der Abfahrten in der nächsten Stunde, dazu alle Läden und Einrichtungen **im Bahnhof** (im Bahnhofsumriss aus OSM)
+und **bis 500 m** drumherum: Lebensmittel, Bäcker & Café, Imbiss & Restaurant, Drogerie & Apotheke, Presse & Reisebedarf,
+Geld & Post, Bahnhofs-Service (WC, Schließfächer, Fahrradparken …), mit Öffnungszeiten und Ebene.
+
+**Online buchen**: Bei jeder Übernachtung einer Tour und im Stadt-Reiter fertige Suchlinks, mit Anreise, Nächten,
+Personen und Preisgrenze schon ausgefüllt. Für billige Unterkünfte: Booking.com (Hostels, Motels, Pensionen oder alles,
+billigste zuerst), Hostelworld, Airbnb-Privatzimmer, Jugendherbergen (DJH), Kayak-Preisvergleich. Für Ferienwohnungen:
+Airbnb (ganze Wohnung) und Booking.com (Ferienwohnungen & -häuser). Die Preise stehen erst auf den Seiten selbst: Freie
+Schnittstellen gibt es dort nicht, und das automatische Auslesen verbieten ihre Nutzungsbedingungen. Unterkünfte aus OSM
+mit eigener Webseite haben in der Liste einen „Web“-Knopf, direkt buchen ist oft billiger.
+
+**ÖPNVKarte anklicken**: Ist die ÖPNVKarte die Grundkarte, zeigt ein Klick die nächste Haltestelle mit allen Linien
+und den nächsten D-Ticket-Abfahrten, mit Sprung zur Abfahrtstafel (nicht im Homeless-Modus, der Klicks selbst nutzt).
+
+**Wanderwege**: Länge, Auf- und Abstieg, Gehzeit nach DIN 33466 (bei Fernwegen Tage à 20 km), Start und Ziel,
+Wegmarkierung in Worten (aus `osmc:symbol`), Betreuer, Beschreibung, Links zu Höhenprofil und Website.
+„Auf Karte“ zeichnet den Verlauf und sucht die nächsten Haltestellen an Start und Ziel.
+
+**YouTuber-Modus**: Karten öffentlicher Infrastruktur zum Zuschalten (OpenRailwayMap: Strecken, Höchstgeschwindigkeit,
+Signale, Elektrifizierung; OpenSeaMap: Wasserstraßen & Schleusen; Radwege) und Drehorte im Kartenausschnitt aus OSM:
+Kraftwerke, Umspannwerke, Windräder, Brücken & Viadukte, Tunnel, Staudämme, Wehre, Schleusen, Wasserwerke, Türme,
+Stellwerke, Drehscheiben, Bunker, verlassene Bahnhöfe, ab Zoom 13 auch Hochspannungsleitungen (nach Spannung gefärbt)
+und stillgelegte Bahnstrecken. Popups mit Spannung, Höhe, Baujahr, Betreiber, Wikipedia und „Nächste Haltestelle“.
+Hinweise zu Recht & Sicherheit (Bahnanlagen, Drohnen-Flugverbotszonen, Lost Places). OpenInfraMap fehlt bewusst:
+nur Vektorkacheln, die Leaflet ohne Zusatzbibliothek nicht zeigt.
+
+**Homeless-Modus**: durch den Tag kommen, für eine **ganze Stadt** (Stadtgrenze aus OSM über Nominatim, gestrichelt
+auf der Karte, die Karte wechselt dabei auf die ÖPNVKarte) oder einen Umkreis um Bahnhof, Standort oder Kartenpunkt:
+billig essen (Discounter, Bäcker, Imbiss, Tafeln/Suppenküchen/Foodsharing-Fairteiler), Handy-Ladestationen und Steckdosen,
+Gratis-WLAN, Bibliotheken, Bahnhofsmission und Angebote für Wohnungslose. Dazu **Parks** (größte zuerst) und kostenlose Orte:
+Aussichtspunkte, Sehenswertes, Museen (Eintritt frei markiert), große Kirchen, Einkaufszentren, Outdoor-Fitness, Badestellen,
+Bücherschränke. Außerdem Trinkwasser, Toiletten, Duschen, Schutzhütten, Verschenkregale. Filter je Kategorie, „nur kostenlose“,
+Öffnungszeiten auf Deutsch, Fußweg-Link, Tipps für den Tag (Essen, Strom & WLAN, wohin tagsüber, Hygiene, Hilfe).
+Für ganz große Städte fällt die Suche nach Essen/Strom/WLAN auf 3 km um den eingegebenen Ort zurück, falls die Abfrage zu groß wird.
+Eine Kurzfassung gibt es bei jedem Übernachtungsort und Tagesziel.
 
 Bewusst streng, lieber weniger als Falsches: Orte mit `access=private/customers/…` werden nicht gezeigt, „kostenlos“ heißt
 in OSM als kostenlos eingetragen, „Hilfe“ nur bei `social_facility:for=homeless/underprivileged` (nicht Tagespflege oder
@@ -127,8 +161,8 @@ Offline-Grenzen, **IC-Ausnahmestrecken** und die Knotenbahnhöfe je Bundesland f
 - Overpass war aus der Entwicklungsumgebung nicht erreichbar, ebenso Geofabrik. Die Daten-Pipeline wurde mit einer
   kleinen handgeschriebenen OSM-Datei getestet. Der erste echte Lauf mit ganz Deutschland passiert in der GitHub Action.
   Overpass braucht keinen API-Schlüssel. Bei Überlast (502/504/429) wechselt die App automatisch zwischen vier
-  Servern (`OVERPASS_ENDPOINTS` in `js/config.js`).
-- Viele OSM-Einträge haben keine Angaben zu Gebühr, Zugang oder Zielgruppe. Der Unterwegs-Modus zeigt solche Orte
+  Servern (`OVERPASS_ENDPOINTS` in `js/config.js`) und stellt Server, die gerade ausgefallen sind, für drei Minuten ans Ende.
+- Viele OSM-Einträge haben keine Angaben zu Gebühr, Zugang oder Zielgruppe. Der Homeless-Modus zeigt solche Orte
   entsprechend vorsichtig an.
 - Die Preise in OSM sind lückenhaft. Die 50-€-Grenze ist eine Schätzung und keine Garantie.
 
@@ -138,7 +172,7 @@ Offline-Grenzen, **IC-Ausnahmestrecken** und die Knotenbahnhöfe je Bundesland f
 index.html, css/, sw.js, manifest.webmanifest
 js/config.js          zentrale Einstellungen
 js/api/               Transitous, Overpass, Wetter
-js/planner/           reine Logik (getestet): D-Ticket-Prüfung, Etappen, Touren, Tagestrip, Rundreise, Unterkünfte, Abfahrten, Unterwegs
+js/planner/           reine Logik (getestet): D-Ticket-Prüfung, Etappen, Touren, Tagestrip, Rundreise, Unterkünfte, Abfahrten, Homeless-Modus
 js/ui/                Reiter, Karte, Eingabefelder
 data/                 Bundesländer und europäische Länder (Natural Earth, gemeinfrei, vereinfacht)
 vendor/leaflet/       Leaflet 1.9.4 (für offline)

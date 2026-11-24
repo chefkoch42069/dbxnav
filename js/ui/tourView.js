@@ -1,6 +1,6 @@
 // Anzeige einer geplanten Tour (Tageskarten, Karte, Übernachtungen) – für D-Ticket und Interrail.
 import { el, clear, busy, toast, bahnLink } from "./dom.js";
-import { renderItinerary, weatherChip, lodgingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails } from "./details.js";
+import { renderItinerary, weatherChip, lodgingPanel, bookingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails } from "./details.js";
 import { groups, drawItinerary, fitPoints, pinIcon, DAY_COLORS } from "./map.js";
 import { nav } from "./nav.js";
 import { state, saveTour, addJournal } from "../state.js";
@@ -87,6 +87,7 @@ export function renderTour(resultBox, tour, { rules = DTICKET_RULES, api, replan
         el("strong", {}, `🛏 Übernachtung in ${o.name}`, d.nights > 1 ? ` (${d.nights} Nächte)` : ""),
         el("div", { class: "chips" }, weatherChip(o, d.date)),
         lazyDetails(`Unterkünfte bis 50 € um ${o.name}`, () => lodgingPanel(o)),
+        lazyDetails("Online suchen: Hostels, Motels, Airbnb, Ferienwohnungen", () => bookingPanel(o, { checkin: d.date, nights: Math.max(1, d.nights || 1) })),
         lazyDetails("Infos am Bahnhof", () => stationPanel(o)),
         lazyDetails("Wanderwege in der Umgebung", () => hikingPanel(o)),
         lazyDetails("Bibliotheken (WLAN, Regentag)", () => libraryPanel(o)),

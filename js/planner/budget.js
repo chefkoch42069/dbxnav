@@ -1,4 +1,4 @@
-// Unterwegs-Modus: kostenlose und billige Orte aus OSM-Tags erkennen.
+// Homeless-Modus: kostenlose und billige Orte aus OSM-Tags erkennen.
 
 export const BUDGET_CATS = {
   help: { label: "Hilfe & Bahnhofsmission", icon: "🤝" },

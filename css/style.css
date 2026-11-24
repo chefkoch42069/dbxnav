@@ -158,8 +158,15 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
   .topbar { padding: 4px 4px 2px; gap: 0; flex-wrap: nowrap; }
   .brand { display: none; }
   .tabs { width: 100%; gap: 0; overflow: visible; }
-  .tabs button { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 1px; border-radius: 8px; font-size: 10.5px; line-height: 1.2; }
+  .tabs button { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 0; border-radius: 8px; font-size: 10px; letter-spacing: -0.1px; line-height: 1.2; }
   .tabs .ico { display: block; font-size: 18px; line-height: 1.1; }
   .tabs .lbl-long { display: none; }
   .tabs .lbl-short { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+details.branch { border-bottom: 1px solid var(--line, #ddd); }
+details.branch > summary { font-weight: 600; padding: 4px 0; }
+details.branch > .list { margin: 0 0 8px 18px; }
+.swatch { display: inline-block; width: 18px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.lines { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+.lines-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.infra-toggles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 2px 10px; }

@@ -5,4 +5,5 @@ export const nav = {
   board: { open: () => {} },
   budget: { open: () => {} },
   interrail: { addStop: () => {}, openTour: () => {} },
+  city: { open: () => {} },
 };

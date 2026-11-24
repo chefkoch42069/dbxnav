@@ -1,13 +1,14 @@
 // Reiter „Planen“: Einstieg über die Reiseart, danach passt sich die Planung an.
 import { el, clear, busy, toast, spinnerLine, errorLine, extLink, direktLink, bahnLink } from "./dom.js";
 import { placeInput } from "./placeInput.js";
-import { renderItinerary, weatherChip, lodgingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails, stayText } from "./details.js";
+import { renderItinerary, weatherChip, lodgingPanel, bookingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails, stayText } from "./details.js";
 import { map, groups, drawItinerary, fitPoints, pinIcon, popupContent, focusOn, DAY_COLORS } from "./map.js";
 import { nav } from "./nav.js";
 import { state, setPref, saveTour, addFavorite, addJournal } from "../state.js";
 import { plan, oneToAll } from "../api/transitous.js";
 import { planTour, latestDeparture, transitArrival } from "../planner/tour.js";
 import { combineReachability } from "../planner/daytrip.js";
+import { buildReachTree } from "../planner/reachTree.js";
 import { suggestRoundtrip } from "../planner/roundtrip.js";
 import { pickBest, pickLatest, DTICKET_RULES } from "../planner/dticket.js";
 import { renderTour, slimDays } from "./tourView.js";
@@ -93,6 +94,29 @@ function dayForm() {
 
 const colorForMinutes = (m) => (m <= 60 ? "#1e7b45" : m <= 105 ? "#7cb342" : m <= 150 ? "#f2a900" : m <= 210 ? "#ef6c00" : "#c62828");
 
+/**
+ * Erreichbare Orte als Linien vom Start aus zeichnen, jeder Abschnitt in der Farbe seiner Fahrzeit.
+ * Nur Linienenden bekommen einen Punkt; Antippen eines Abschnitts wählt den Ort an seinem Ende.
+ */
+function drawReachTree(home, tree, layer, { onClick, popup } = {}) {
+  const bind = (layer, d) => {
+    layer.bindTooltip(`${d.name} · ${fmtDuration(d.outMinutes * 60)}`, { sticky: true });
+    if (popup) layer.bindPopup(() => popup(d));
+    if (onClick) layer.on("click", () => onClick(d));
+    return layer;
+  };
+  // Erst eine helle Kontur unter alle Abschnitte, damit die Linien auf jeder Grundkarte lesbar bleiben.
+  const segs = tree.nodes.map((d) => [d.parent < 0 ? home : tree.nodes[d.parent], d]);
+  for (const [a, b] of segs) L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { color: "#fff", weight: 7, opacity: 0.8, interactive: false }).addTo(layer);
+  for (const [a, b] of segs) bind(L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { color: colorForMinutes(b.outMinutes), weight: 4, opacity: 0.95, lineCap: "round" }), b).addTo(layer);
+  for (const br of tree.branches) {
+    const d = br.end;
+    bind(L.circleMarker([d.lat, d.lon], { radius: 5, color: "#fff", weight: 1.5, fillColor: colorForMinutes(d.outMinutes), fillOpacity: 1 }), d).addTo(layer);
+  }
+}
+
+const branchPoints = (br) => [br.from, ...br.stops].map((p) => [p.lat, p.lon]);
+
 async function runDayTrip(home, o) {
   clear(resultBox).append(spinnerLine("Frage Erreichbarkeit bei Transitous ab (hin und zurück) …"));
   groups.daytrip.clearLayers();
@@ -108,32 +132,40 @@ async function runDayTrip(home, o) {
     resultBox.append(el("div", { class: "alert warn" }, "Keine Ziele gefunden. Mehr Fahrzeit oder kürzeren Aufenthalt probieren."));
     return;
   }
+  const tree = buildReachTree(home, dests);
+  drawReachTree(home, tree, groups.daytrip, { onClick: (d) => showDayDest(home, d, o) });
   L.marker([home.lat, home.lon], { icon: pinIcon("⌂") }).addTo(groups.daytrip).bindPopup(home.name);
-  const shown = dests.slice(0, 300);
-  for (const d of shown) {
-    L.circleMarker([d.lat, d.lon], { radius: 4 + Math.min(6, d.importance * 600), color: "#fff", weight: 1.5, fillColor: colorForMinutes(d.outMinutes), fillOpacity: 0.95 })
-      .bindTooltip(`${d.name} · ${fmtDuration(d.outMinutes * 60)}`)
-      .on("click", () => showDayDest(home, d, o))
-      .addTo(groups.daytrip);
-  }
-  fitPoints([[home.lat, home.lon], ...shown.map((d) => [d.lat, d.lon])], 10);
+  fitPoints([[home.lat, home.lon], ...dests.map((d) => [d.lat, d.lon])], 10);
 
+  // Liste: eine Zeile je Linie (benannt nach dem Endpunkt), die Halte darin aufklappbar.
   const sortSel = el("select", {}, [["importance", "Bedeutung"], ["stay", "Längster Aufenthalt"], ["near", "Kürzeste Fahrt"]].map(([v, t]) => el("option", { value: v }, t)));
-  const list = el("ul", { class: "list" });
+  const list = el("div");
+  const maxOf = (br, f) => Math.max(...br.stops.map(f));
+  const stopItem = (d) => el("li", {}, el("div", { class: "grow" }, el("strong", {}, d.name),
+    el("span", { class: "muted small" }, `${fmtDuration(d.outMinutes * 60)} hin · frühestens an ${fmtTime(d.arrival)} · letzte Rückfahrt ${fmtTime(d.lastReturn)} · ${stayText(d.arrival, d.lastReturn)} Zeit`)),
+    el("button", { class: "btn small", onclick: () => showDayDest(home, d, o) }, "Details"));
   const renderList = () => {
-    const arr = [...dests];
-    if (sortSel.value === "stay") arr.sort((a, b) => b.stay - a.stay);
-    if (sortSel.value === "near") arr.sort((a, b) => a.outMinutes - b.outMinutes);
-    list.replaceChildren(...arr.slice(0, 60).map((d) =>
-      el("li", {}, el("div", { class: "grow" }, el("strong", {}, d.name),
-        el("span", { class: "muted small" }, `${fmtDuration(d.outMinutes * 60)} hin · frühestens an ${fmtTime(d.arrival)} · letzte Rückfahrt ${fmtTime(d.lastReturn)} · ${stayText(d.arrival, d.lastReturn)} Zeit`)),
-        el("button", { class: "btn small", onclick: () => showDayDest(home, d, o) }, "Details"))));
+    const arr = [...tree.branches];
+    if (sortSel.value === "importance") arr.sort((a, b) => maxOf(b, (s) => s.importance) - maxOf(a, (s) => s.importance));
+    if (sortSel.value === "stay") arr.sort((a, b) => maxOf(b, (s) => s.stay) - maxOf(a, (s) => s.stay));
+    if (sortSel.value === "near") arr.sort((a, b) => a.stops[0].outMinutes - b.stops[0].outMinutes);
+    list.replaceChildren(...arr.slice(0, 40).map((br) => {
+      const first = br.stops[0], last = br.end;
+      const range = br.stops.length > 1 ? `${fmtDuration(first.outMinutes * 60)} – ${fmtDuration(last.outMinutes * 60)}` : fmtDuration(last.outMinutes * 60);
+      const det = el("details", { class: "branch" },
+        el("summary", {}, el("i", { class: "swatch", style: { background: colorForMinutes(last.outMinutes) } }),
+          br.from === home ? `Richtung ${last.name}` : `${br.from.name} → ${last.name}`,
+          el("span", { class: "muted small" }, ` · ${br.stops.length} ${br.stops.length === 1 ? "Halt" : "Halte"} · ${range}`)),
+        el("ul", { class: "list" }, br.stops.map(stopItem)));
+      det.addEventListener("toggle", () => { if (det.open) fitPoints(branchPoints(br), 11); });
+      return det;
+    }));
   };
   sortSel.onchange = renderList;
   renderList();
   const dl = direktLink(home);
   resultBox.append(
-    el("h3", {}, `${dests.length} Ziele hin und zurück am selben Tag`),
+    el("h3", {}, `${dests.length} Ziele auf ${tree.branches.length} Strecken, hin und zurück am selben Tag`),
     el("div", { class: "legend small" }, ...[[60, "≤ 1 h"], [105, "≤ 1¾ h"], [150, "≤ 2½ h"], [210, "≤ 3½ h"], [999, "länger"]].map(([m, t]) => el("span", { style: { marginRight: "8px" } }, el("i", { style: { background: colorForMinutes(m) } }), t))),
     dl ? el("p", { class: "small" }, "Ohne Umstieg erreichbar: ", extLink(dl, "direkt.bahn.guru (nur Regionalverkehr)")) : null,
     el("div", { class: "field" }, el("label", {}, "Sortieren"), sortSel),
@@ -211,15 +243,16 @@ function weekendForm() {
       groups.daytrip.clearLayers();
       const res = await oneToAll(s, berlinToISO(date.value, dep.value), { maxMinutes: Math.min(+maxH.value, 5) * 60 });
       const fake = { all: (res.all || []).map((r) => ({ ...r, place: { ...r.place, departure: "2099-01-01T00:00:00Z" } })) };
-      const dests = combineReachability(s, res, fake, { minStaySec: 0, minDistanceKm: 40 }).slice(0, 250);
-      for (const d of dests) {
-        L.circleMarker([d.lat, d.lon], { radius: 4 + Math.min(6, d.importance * 600), color: "#fff", weight: 1.5, fillColor: colorForMinutes(d.outMinutes), fillOpacity: 0.95 })
-          .bindPopup(() => popupContent([el("strong", {}, d.name), el("br"), `${fmtDuration(d.outMinutes * 60)} Fahrt`, el("br"),
-            el("button", { class: "btn small primary", onclick: () => { dest.value = { name: d.name, lat: d.lat, lon: d.lon, stopId: d.stopId }; map.closePopup(); toast(`Ziel: ${d.name}`); } }, "Als Ziel übernehmen")]))
-          .addTo(groups.daytrip);
-      }
-      fitPoints(dests.map((d) => [d.lat, d.lon]), 9);
-      toast(`${dests.length} Orte in Reichweite – Punkt antippen und als Ziel übernehmen.`);
+      // Mindestabstand 8 km statt 40 km, sonst fehlen die Halte nahe am Start und die Linien beginnen erst weit draußen.
+      const dests = combineReachability(s, res, fake, { minStaySec: 0, minDistanceKm: 8 });
+      const tree = buildReachTree(s, dests);
+      drawReachTree(s, tree, groups.daytrip, {
+        popup: (d) => popupContent([el("strong", {}, d.name), el("br"), `${fmtDuration(d.outMinutes * 60)} Fahrt`, el("br"),
+          el("button", { class: "btn small primary", onclick: () => { dest.value = { name: d.name, lat: d.lat, lon: d.lon, stopId: d.stopId }; map.closePopup(); toast(`Ziel: ${d.name}`); } }, "Als Ziel übernehmen")]),
+      });
+      L.marker([s.lat, s.lon], { icon: pinIcon("⌂") }).addTo(groups.daytrip).bindPopup(s.name);
+      fitPoints([[s.lat, s.lon], ...dests.map((d) => [d.lat, d.lon])], 9);
+      toast(`${dests.length} Orte auf ${tree.branches.length} Strecken – Linie antippen und als Ziel übernehmen.`);
     });
   };
   go.onclick = () => {

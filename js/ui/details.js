@@ -1,11 +1,15 @@
 // Wiederverwendbare Ansichten: Verbindung, Unterkünfte, Bahnhofs-Infos, Ausflugsziele, Wetter.
 import { el, clear, badgeFor, spinnerLine, errorLine, extLink, osmLink, toast } from "./dom.js";
-import { fmtTime, fmtDuration, diffSec } from "../lib/time.js";
+import { fmtTime, fmtDuration, diffSec, todayBerlin, addDays } from "../lib/time.js";
 import { lineName, DTICKET_RULES } from "../planner/dticket.js";
 import { estimatePrice, ratingOrder, TYPE_LABEL } from "../planner/accommodation.js";
-import { accommodations, stationInfo, stationCategory, sights, sightCategory, hikingRoutes, waymarkedLink, libraries } from "../api/overpass.js";
+import { accommodations, stationInfo, stationCategory, sights, sightCategory, hikingRoutes, hikingRouteGeometry, waymarkedLink, libraries, MAX_MAP_KM } from "../api/overpass.js";
+import { reverseStop } from "../api/transitous.js";
+import { walkHours, fmtHours } from "../planner/hiking.js";
+import { bookingLinks } from "../planner/booking.js";
+import { nav } from "./nav.js";
 import { forecast } from "../api/weather.js";
-import { map, groups, popupContent, focusOn, trackLabel, showOverlay } from "./map.js";
+import { map, groups, popupContent, focusOn, fitPoints, pinIcon, trackLabel, showOverlay } from "./map.js";
 import { addFavorite } from "../state.js";
 import { APP } from "../config.js";
 
@@ -70,6 +74,7 @@ export function lodgingPanel(place, { radius = 3000 } = {}) {
               el("strong", {}, t.name),
               el("span", { class: "muted small" }, `${TYPE_LABEL[t.tourism] || t.tourism} · ${a.dist.toFixed(1)} km`, t.stars ? ` · ${t.stars}★` : ""),
               el("span", {}, el("span", { class: `rating ${a.est.rating}` }, a.est.rating === "likely" ? "≤ 50 € wahrscheinlich" : a.est.rating === "maybe" ? "Preis prüfen" : "eher teurer"), " ", el("span", { class: "muted small" }, a.est.reason))),
+            t.website || t["contact:website"] ? el("a", { class: "btn small", href: t.website || t["contact:website"], target: "_blank", rel: "noopener", title: "Direkt beim Haus buchen – oft billiger als über Portale" }, "Web") : null,
             el("button", { class: "btn small", onclick: () => { focusOn(a.lat, a.lon, 16); m.openPopup(); } }, "Karte")));
         }
         clear(box).append(
@@ -157,21 +162,97 @@ export function hikingPanel(place) {
   hikingRoutes(place)
     .then((items) => {
       const ul = el("ul", { class: "list" });
-      for (const it of items.slice(0, 25)) {
-        const i = it.info;
-        ul.append(el("li", {},
-          el("div", { class: "grow" }, el("strong", {}, `🥾 ${i.name}`),
-            el("span", { class: "muted small" }, [i.label, i.km ? `${i.km} km` : null, i.roundtrip ? "Rundweg" : null, `${it.dist.toFixed(1)} km entfernt`].filter(Boolean).join(" · ")),
-            i.ends ? el("span", { class: "muted small" }, i.ends) : null),
-          extLink(waymarkedLink(it.id), "Verlauf")));
-      }
+      for (const it of items.slice(0, 25)) ul.append(hikeItem(it));
       clear(box).append(
         items.length ? ul : el("p", { class: "muted" }, "Keine markierten Wanderwege in 6 km gefunden."),
-        el("p", { class: "muted small" }, "Auf der Karte ist jetzt die Ebene „Wanderwege“ an. „Verlauf“ öffnet Höhenprofil und Strecke bei Waymarked Trails."),
+        el("p", { class: "muted small" }, "„Auf Karte“ zeichnet den Weg und sucht die nächsten Haltestellen an Start und Ziel. „Höhenprofil“ öffnet Waymarked Trails. Gehzeit nach DIN 33466 (4 km/h, 300 Hm/h hoch, 500 Hm/h runter)."),
         el("button", { class: "btn small", onclick: () => { showOverlay("Wanderwege"); focusOn(place.lat, place.lon, 13); } }, "Wanderwege auf der Karte"));
     })
     .catch((e) => clear(box).append(errorLine(e)));
   return box;
+}
+
+function hikeItem(it) {
+  const i = it.info;
+  const more = el("div");
+  const line = (...xs) => { const t = xs.filter(Boolean).join(" · "); return t ? el("span", { class: "muted small" }, t) : null; };
+  const tooLong = i.km > MAX_MAP_KM;
+  const showBtn = el("button", { class: "btn small", disabled: tooLong, title: tooLong ? "Zu lang für die Karte – Höhenprofil öffnet den ganzen Weg" : null }, "Auf Karte");
+  showBtn.onclick = async () => {
+    showBtn.disabled = true;
+    clear(more).append(spinnerLine("Lade Verlauf …"));
+    try {
+      const g = await hikingRouteGeometry(it.id);
+      if (!g.lines.length) throw new Error("Kein Verlauf in OSM.");
+      groups.trip.clearLayers();
+      for (const l of g.lines) L.polyline(l, { color: "#fff", weight: 8, opacity: 0.8, interactive: false }).addTo(groups.trip);
+      for (const l of g.lines) L.polyline(l, { color: "#c2185b", weight: 4 }).bindTooltip(i.name, { sticky: true }).addTo(groups.trip);
+      fitPoints(g.lines.flat(), 15);
+      const km = i.km || Math.round(g.km * 10) / 10;
+      const hours = i.hours ?? walkHours(km, i.ascent, i.descent);
+      // Start/Ziel: Enden der längsten Linie (Wege in OSM bestehen aus vielen Abschnitten)
+      const longest = g.lines.reduce((a, b) => (b.length > a.length ? b : a));
+      const ends = i.roundtrip ? [longest[0]] : [longest[0], longest[longest.length - 1]];
+      const stops = await Promise.all(ends.map(([lat, lon]) => reverseStop(lat, lon).catch(() => null)));
+      ends.forEach(([lat, lon], k) => L.marker([lat, lon], { icon: pinIcon(k ? "Z" : "S", "#c2185b") }).addTo(groups.trip));
+      clear(more).append(el("div", { class: "card small" },
+        el("div", {}, `Länge ${km} km${i.km ? "" : " (aus dem Verlauf berechnet)"}${hours ? ` · Gehzeit ca. ${fmtHours(hours)}` : ""}${i.ascent == null ? " · Höhenmeter nicht in OSM" : ""}`),
+        ...stops.map((s, k) => s ? el("div", {}, `${ends.length > 1 ? (k ? "Ziel" : "Start") : "Start/Ziel"}: nächste Haltestelle `, el("strong", {}, s.name), " ",
+          el("button", { class: "btn small", onclick: () => nav.board.open(s) }, "Abfahrten")) : null)));
+    } catch (e) {
+      clear(more).append(errorLine(e));
+    } finally {
+      showBtn.disabled = false;
+    }
+  };
+  return el("li", { style: { flexWrap: "wrap" } },
+    el("div", { class: "grow" },
+      el("strong", {}, `🥾 ${i.name}`, i.ref ? el("span", { class: "muted small" }, ` (${i.ref})`) : null),
+      line(i.label, i.km ? `${i.km} km` : null, i.roundtrip ? "Rundweg" : null, `${it.dist.toFixed(1)} km entfernt`),
+      line(i.ascent != null ? `↑ ${i.ascent} m` : null, i.descent != null ? `↓ ${i.descent} m` : null, i.hours ? `Gehzeit ca. ${fmtHours(i.hours)}` : null, i.days ? `Mehrtagesweg: ca. ${i.days} Tage à 20 km` : null),
+      i.ends ? line(i.ends) : null,
+      i.symbol ? line(`Markierung: ${i.symbol}`) : null,
+      i.operator ? line(`Betreut von ${i.operator}`) : null,
+      i.description ? el("span", { class: "small", style: { display: "block", marginTop: "2px" } }, i.description.length > 220 ? `${i.description.slice(0, 217)}…` : i.description) : null,
+      more),
+    el("div", { class: "btns", style: { flexDirection: "column", alignItems: "stretch" } },
+      showBtn,
+      extLink(waymarkedLink(it.id), "Höhenprofil"),
+      i.website ? extLink(i.website, "Web") : null));
+}
+
+/**
+ * Online buchen: Suchlinks zu Booking, Airbnb, Hostelworld, DJH und Kayak – Datum, Nächte, Personen und
+ * Preisgrenze einstellbar. Die Preise stehen erst auf den Seiten selbst.
+ */
+export function bookingPanel(place, { checkin = todayBerlin(), nights = 1, adults = 1 } = {}) {
+  const date = el("input", { type: "date", value: checkin });
+  const n = el("select", {}, [1, 2, 3, 4, 5, 6, 7, 10, 14].map((x) => el("option", { value: x, selected: x === nights }, `${x} ${x === 1 ? "Nacht" : "Nächte"}`)));
+  const ppl = el("select", {}, [1, 2, 3, 4].map((x) => el("option", { value: x, selected: x === adults }, `${x} ${x === 1 ? "Person" : "Personen"}`)));
+  const max = el("select", {}, [30, 40, 50, 60, 80, 100].map((x) => el("option", { value: x, selected: x === APP.maxPricePerNight }, `bis ${x} €`)));
+  const out = el("div");
+  const linkList = (title, links) => [el("h4", { style: { margin: "10px 0 4px" } }, title),
+    el("ul", { class: "list" }, links.map((l) => el("li", {},
+      el("div", { class: "grow" }, el("strong", {}, l.label), el("span", { class: "muted small" }, `${l.site} · ${l.note}`)),
+      el("a", { class: "btn small primary", href: l.url, target: "_blank", rel: "noopener" }, "Suchen ↗"))))];
+  const render = () => {
+    const checkout = addDays(date.value, +n.value);
+    const r = bookingLinks(place, { checkin: date.value, checkout, adults: +ppl.value, maxPrice: +max.value });
+    out.replaceChildren(
+      ...linkList(`🛏 Billig: Hostels, Motels, Pensionen in ${r.city}`, r.budget),
+      ...linkList(`🏠 Ferienwohnungen in ${r.city}`, r.rentals),
+      el("p", { class: "muted small" }, "Die Links öffnen die Suche auf der jeweiligen Seite, Preise stehen erst dort. Tipp: Direkt beim Haus buchen (Web-Link in der Unterkunftsliste) ist oft billiger als über Portale."));
+  };
+  [date, n, ppl, max].forEach((x) => (x.onchange = render));
+  render();
+  return el("div", {},
+    el("div", { class: "row" },
+      el("div", { class: "field" }, el("label", {}, "Anreise"), date),
+      el("div", { class: "field" }, el("label", {}, "Dauer"), n)),
+    el("div", { class: "row" },
+      el("div", { class: "field" }, el("label", {}, "Personen"), ppl),
+      el("div", { class: "field" }, el("label", {}, "Preis je Nacht"), max)),
+    out);
 }
 
 /** Bibliotheken in der Nähe: Öffnungszeiten, WLAN – gut für Regentage und zum Aufladen. */
