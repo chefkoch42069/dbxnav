@@ -5,14 +5,14 @@ import { legPoints, encodePolyline, decodePolyline } from "./lib/polyline.js";
 import { simplify, statesAlong } from "./lib/geo.js";
 import { berlinDate } from "./lib/time.js";
 import { lineName } from "./planner/dticket.js";
+import { rideLegs } from "./lib/legs.js";
 import { loadStates } from "./ui/statesData.js";
 
-const TRANSIT = (l) => !["WALK", "BIKE", "CAR", "RENTAL"].includes(l.mode);
 
 export async function addItineraryToCollector(it) {
   const fc = await loadStates();
   let added = 0;
-  for (const leg of it.legs.filter(TRANSIT)) {
+  for (const leg of rideLegs(it)) {
     const pts = simplify(legPoints(leg), 0.0008);
     const key = `${leg.tripId || lineName(leg)}|${leg.from.name}|${leg.to.name}|${berlinDate(leg.startTime)}`;
     if (state.collector.legs.some((l) => l.key === key)) continue;

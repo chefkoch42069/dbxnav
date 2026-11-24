@@ -11,6 +11,7 @@ import { stopTimes, trip as fetchTrip, reverseStop } from "../api/transitous.js"
 import { prepareDepartures, MODE_GROUPS } from "../planner/departures.js";
 import { berlinToISO, fmtTime, todayBerlin, berlinDate } from "../lib/time.js";
 import { legPoints } from "../lib/polyline.js";
+import { isRide } from "../lib/legs.js";
 import { badgeFor } from "./dom.js";
 
 const FILTER_GROUPS = ["zug", "sbahn", "ubahn", "tram", "bus", "faehre"];
@@ -136,7 +137,7 @@ async function showTrip(x) {
   clear(detailBox).append(spinnerLine("Lade Fahrtverlauf …"));
   try {
     const t = await fetchTrip(x.tripId);
-    const leg = t.legs.find((l) => l.mode !== "WALK") || t.legs[0];
+    const leg = t.legs.find(isRide) || t.legs[0];
     const stops = [leg.from, ...(leg.intermediateStops || []), leg.to];
     const hereIdx = stops.findIndex((s) => s.name === x.stopName || s.stopId === x.place?.stopId);
     groups.trip.clearLayers();

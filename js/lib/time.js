@@ -79,3 +79,20 @@ export function nextWeekday(date, weekday /* 0=So … 6=Sa */) {
   const cur = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return addDays(date, (weekday - cur + 7) % 7);
 }
+
+/** ISO-Zeit plus/minus Minuten. */
+export function addMinutes(iso, min) {
+  return new Date(Date.parse(iso) + min * 60000).toISOString();
+}
+
+/** Minuten zwischen zwei ISO-Zeiten (gerundet). */
+export function diffMin(aIso, bIso) {
+  return Math.round((Date.parse(bIso) - Date.parse(aIso)) / 60000);
+}
+
+/** Minuten → '15 min', '1 h', '1 h 30 min' (für Auswahlfelder). */
+export function fmtMinutes(min) {
+  const h = Math.floor(min / 60), r = Math.round(min % 60);
+  if (!h) return `${r} min`;
+  return r ? `${h} h ${String(r).padStart(2, "0")} min` : `${h} h`;
+}

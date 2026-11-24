@@ -29,13 +29,19 @@ export function pointInGeometry(lat, lon, geom) {
   return false;
 }
 
-/** Bundesland-ID (z. B. 'DE-BY') für einen Punkt, oder null. Stadtstaaten zuerst prüfen. */
+const locators = new WeakMap();
+/** Bundesland-ID (z. B. 'DE-BY') für einen Punkt, oder null. Kleine Gebiete (Stadtstaaten) zuerst. */
 export function stateAt(lat, lon, featureCollection) {
-  const feats = [...featureCollection.features].sort(
-    (a, b) => ["DE-BE", "DE-HB", "DE-HH"].includes(b.properties.id) - ["DE-BE", "DE-HB", "DE-HH"].includes(a.properties.id)
-  );
-  for (const f of feats) if (pointInGeometry(lat, lon, f.geometry)) return f.properties.id;
-  return null;
+  let loc = locators.get(featureCollection);
+  if (!loc) locators.set(featureCollection, (loc = makeLocator(featureCollection)));
+  return loc(lat, lon);
+}
+
+/** Rechteck [süd, west, nord, ost] um einen Punkt. */
+export function boundsAround(center, radiusM) {
+  const dLat = radiusM / 111320;
+  const dLon = radiusM / (111320 * Math.cos((center.lat * Math.PI) / 180));
+  return [center.lat - dLat, center.lon - dLon, center.lat + dLat, center.lon + dLon];
 }
 
 /** Alle Bundesländer, durch die eine Linie führt (stichprobenartig, alle ~step Punkte). */

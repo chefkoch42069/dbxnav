@@ -1,5 +1,5 @@
 // Anzeige einer geplanten Tour (Tageskarten, Karte, Übernachtungen) – für D-Ticket und Interrail.
-import { el, clear, busy, toast, bahnLink } from "./dom.js";
+import { el, clear, busy, toast, bahnLink, plain } from "./dom.js";
 import { renderItinerary, weatherChip, lodgingPanel, bookingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails } from "./details.js";
 import { groups, drawItinerary, fitPoints, pinIcon, DAY_COLORS } from "./map.js";
 import { nav } from "./nav.js";
@@ -82,7 +82,7 @@ export function renderTour(resultBox, tour, { rules = DTICKET_RULES, api, replan
     }
     if (d.overnight) {
       const o = d.overnight;
-      L.marker([o.lat, o.lon], { icon: pinIcon(i + 1, color) }).addTo(groups.route).bindPopup(`Nacht ${i + 1}: ${o.name.replace(/[<>&]/g, "")}`);
+      L.marker([o.lat, o.lon], { icon: pinIcon(i + 1, color) }).addTo(groups.route).bindPopup(`Nacht ${i + 1}: ${plain(o.name)}`);
       const night = el("div", { class: "card", style: { background: "var(--soft)" } },
         el("strong", {}, `🛏 Übernachtung in ${o.name}`, d.nights > 1 ? ` (${d.nights} Nächte)` : ""),
         el("div", { class: "chips" }, weatherChip(o, d.date)),
@@ -111,7 +111,7 @@ export function renderTour(resultBox, tour, { rules = DTICKET_RULES, api, replan
     }
     resultBox.append(card);
   });
-  L.marker([params.start.lat, params.start.lon], { icon: pinIcon("⌂") }).addTo(groups.route).bindPopup(params.start.name.replace(/[<>&]/g, ""));
+  L.marker([params.start.lat, params.start.lon], { icon: pinIcon("⌂") }).addTo(groups.route).bindPopup(plain(params.start.name));
   fitPoints(pts, 11);
   // „Letzte Verbindung“ nacheinander abfragen, um Transitous nicht zu überlasten
   (async () => { for (const job of latestQueue) await job(); })();

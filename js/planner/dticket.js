@@ -2,7 +2,8 @@
 import { IC_EXCEPTIONS } from "../config.js";
 
 const NEVER = new Set(["HIGHSPEED_RAIL", "NIGHT_RAIL", "COACH", "AIRPLANE"]);
-const NON_TRANSIT = new Set(["WALK", "BIKE", "CAR", "RENTAL", "CAR_PARKING", "ODM", "FLEX"]);
+import { OWN_WAY } from "../lib/legs.js";
+const NON_TRANSIT = new Set([...OWN_WAY, "ODM", "FLEX"]);
 const IC_NAME = /^(ICE|ECE|IC|EC|RJX?|NJ|EN|FLX)\s?\d*/i;
 
 const norm = (s) => (s || "").toLowerCase().replace(/[()\s.,-]+/g, " ").replace(/\bhauptbahnhof\b/g, "hbf").trim();

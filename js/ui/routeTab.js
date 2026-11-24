@@ -1,6 +1,7 @@
 // Reiter „Verbindung“: Start und Ziel eingeben → Verbindungen nur mit dem Deutschlandticket.
 // Auf Wunsch zum Vergleich auch ICE/IC (ausgegraut), damit man sieht, was der Nahverkehr kostet.
-import { el, clear, toast, busy, spinnerLine, errorLine, badgeFor, bahnLink } from "./dom.js";
+import { el, clear, toast, busy, spinnerLine, errorLine, badgeFor, bahnLink, durationSelect, optionSelect, DURATIONS, plain } from "./dom.js";
+import { stopList } from "./stopList.js";
 import { placeInput } from "./placeInput.js";
 import { renderItinerary, sightsPanel, lazyDetails } from "./details.js";
 import { budgetPanel } from "./budgetTab.js";
@@ -24,7 +25,6 @@ let from, to, via, resultBox, recentBox;
 let results = [], cursors = {}, lastQuery = null, openKey = null;
 const recent = load("routeRecent", []);
 
-const STAYS = [[15, "15 min"], [30, "30 min"], [45, "45 min"], [60, "1 h"], [90, "1½ h"], [120, "2 h"], [180, "3 h"], [240, "4 h"], [360, "6 h"]];
 const apiWith = (opts) => ({ plan: (a, b, iso, o = {}) => searchConnections(a, b, iso, { ...opts, ...o }).then((r) => r.itineraries) });
 const nowHHMM = () => new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
 
@@ -37,11 +37,11 @@ export function initRouteTab(root) {
 
   const date = el("input", { type: "date", id: "route-date", value: todayBerlin() });
   const time = el("input", { type: "time", id: "route-time", value: nowHHMM() });
-  const mode = el("select", {}, el("option", { value: "dep" }, "Abfahrt"), el("option", { value: "arr" }, "Ankunft"));
+  const mode = optionSelect([["dep", "Abfahrt"], ["arr", "Ankunft"]], "dep");
   const nowBtn = el("button", { class: "btn small", onclick: () => { date.value = todayBerlin(); time.value = nowHHMM(); mode.value = "dep"; } }, "Jetzt");
 
   const railOnly = el("input", { type: "checkbox" });
-  const maxT = el("select", {}, [["8", "beliebig"], ["0", "direkt"], ["1", "max. 1"], ["2", "max. 2"], ["3", "max. 3"]].map(([v, t]) => el("option", { value: v }, t)));
+  const maxT = optionSelect([["8", "beliebig"], ["0", "direkt"], ["1", "max. 1"], ["2", "max. 2"], ["3", "max. 3"]], "8");
   const slow = el("input", { type: "checkbox" });
   const wheel = el("input", { type: "checkbox" });
   const compare = el("input", { type: "checkbox" });
@@ -61,32 +61,24 @@ export function initRouteTab(root) {
   const fromLbl = from.node.querySelector("label"), toLbl = to.node.querySelector("label");
 
   // ---------- Zwischenstopps
-  const stops = load("routeStops", []);
-  const stopsList = el("ul", { class: "list" });
-  const stayDefault = el("select", { "aria-label": "Aufenthalt für neue Stopps" }, STAYS.map(([v, t]) => el("option", { value: v, selected: v === 60 }, t)));
-  const addStop = placeInput({ label: "Zwischenstopp hinzufügen", id: "route-addstop", onSelect: (pl) => { stops.push({ place: pl, stayMin: +stayDefault.value }); addStop.value = null; renderStops(); } });
-  const renderStops = () => {
-    save("routeStops", stops);
-    stopsList.replaceChildren(...stops.map((s, i) => el("li", {},
-      el("div", { class: "grow" }, el("strong", {}, `${i + 1}. ${s.place.name}`)),
-      el("select", { "aria-label": `Aufenthalt in ${s.place.name}`, onchange: (e) => { s.stayMin = +e.target.value; save("routeStops", stops); } },
-        STAYS.map(([v, t]) => el("option", { value: v, selected: v === s.stayMin }, t))),
-      el("button", { class: "btn small", title: "nach oben", disabled: i === 0, onclick: () => { [stops[i - 1], stops[i]] = [stops[i], stops[i - 1]]; renderStops(); } }, "↑"),
-      el("button", { class: "btn small", title: "entfernen", onclick: () => { stops.splice(i, 1); renderStops(); } }, "✕"))));
-    if (!stops.length) stopsList.append(el("li", { class: "muted small" }, "Noch keine Zwischenstopps – unten hinzufügen."));
-  };
+  const stayDefault = durationSelect(DURATIONS.stay, 60, { "aria-label": "Aufenthalt für neue Stopps" });
+  const stops = stopList({
+    field: "stayMin", items: load("routeStops", []), initial: () => +stayDefault.value,
+    empty: "Noch keine Zwischenstopps – unten hinzufügen.", onChange: (l) => save("routeStops", l),
+    makeSelect: (v, onChange) => durationSelect(DURATIONS.stay, v, { onchange: (e) => onChange(+e.target.value) }),
+  });
+  const addStop = placeInput({ label: "Zwischenstopp hinzufügen", id: "route-addstop", onSelect: (pl) => { stops.add(pl, { silent: true }); addStop.value = null; } });
   const multiBox = el("div", {},
     el("h3", {}, "Zwischenstopps"),
-    stopsList,
+    stops.node,
     addStop.node,
     el("div", { class: "field" }, el("label", {}, "Aufenthalt für neue Stopps"), stayDefault));
 
   // ---------- Einkaufen
-  const shopDur = el("select", {}, [[60, "1 h"], [120, "2 h"], [180, "3 h"], [240, "4 h"], [300, "5 h"], [360, "6 h"], ["", "bis Ladenschluss"]]
-    .map(([v, t]) => el("option", { value: v, selected: v === 180 }, t)));
+  const shopDur = durationSelect([15, 30, 45, 60, 90, 120, 180, 240, 300, 360], 180, {}, [["", "bis Ladenschluss"]]);
   const openT = el("input", { type: "time", id: "route-open", value: DEFAULT_HOURS.open });
   const closeT = el("input", { type: "time", id: "route-close", value: DEFAULT_HOURS.close });
-  const buffer = el("select", {}, [5, 10, 15, 20, 30].map((v) => el("option", { value: v, selected: v === 10 }, `${v} min`)));
+  const buffer = durationSelect([5, 10, 15, 20, 30], 10);
   const hoursNote = el("p", { class: "muted small" }, "Standard: Innenstadt Mo–Sa 10–20 Uhr. Für genaue Zeiten ein Einkaufszentrum wählen.");
   let centerHours = null; // opening_hours-Text des gewählten Einkaufszentrums
   const applyHours = () => {
@@ -156,8 +148,8 @@ export function initRouteTab(root) {
     if (!from.value || !to.value) return toast(`Bitte ${MODES[current].from} und ${MODES[current].to} wählen.`);
     if (current === "simple") return busy(go, () => run(query()));
     if (current === "multi") {
-      if (!stops.length) return toast("Bitte mindestens einen Zwischenstopp hinzufügen – sonst reicht „Einfach“.");
-      return busy(go, () => runMulti({ from: from.value, to: to.value, stops: stops.map((s) => ({ ...s })), startIso: berlinToISO(date.value, time.value || "08:00"), opts: baseOpts() }));
+      if (!stops.items.length) return toast("Bitte mindestens einen Zwischenstopp hinzufügen – sonst reicht „Einfach“.");
+      return busy(go, () => runMulti({ from: from.value, to: to.value, stops: stops.copy(), startIso: berlinToISO(date.value, time.value || "08:00"), opts: baseOpts() }));
     }
     const h = hoursOn(centerHours?.oh, date.value);
     if (h === "closed" || (!centerHours && weekdayIdx(date.value) === 6)) {
@@ -199,7 +191,6 @@ export function initRouteTab(root) {
     go,
     resultBox,
     recentBox);
-  renderStops();
   setMode(MODES[current] ? current : "simple");
   renderRecent();
 }
@@ -369,7 +360,7 @@ async function runMulti(q) {
     body.push(card);
     if (seg.leaveAt) {
       const p = seg.to;
-      L.marker([p.lat, p.lon], { icon: pinIcon(i + 1, color) }).addTo(groups.route).bindPopup(`Stopp ${i + 1}: ${p.name.replace(/[<>&]/g, "")}`);
+      L.marker([p.lat, p.lon], { icon: pinIcon(i + 1, color) }).addTo(groups.route).bindPopup(`Stopp ${i + 1}: ${plain(p.name)}`);
       body.push(el("div", { class: "stay" },
         el("strong", {}, `⏸ Aufenthalt in ${p.name}`),
         el("div", {}, `${fmtTime(seg.arrive)} – ${fmtTime(seg.leaveAt)} (${fmtDuration(seg.stayMin * 60)})`),

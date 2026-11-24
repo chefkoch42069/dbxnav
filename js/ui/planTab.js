@@ -1,5 +1,8 @@
 // Reiter „Planen“: Einstieg über die Reiseart, danach passt sich die Planung an.
-import { el, clear, busy, toast, spinnerLine, errorLine, extLink, direktLink, bahnLink } from "./dom.js";
+import { el, clear, busy, toast, spinnerLine, errorLine, extLink, direktLink, bahnLink, durationSelect, optionSelect, DURATIONS } from "./dom.js";
+import { stopList } from "./stopList.js";
+import { timeScale } from "./timeScale.js";
+import { cityName } from "../planner/booking.js";
 import { placeInput } from "./placeInput.js";
 import { renderItinerary, weatherChip, lodgingPanel, bookingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails, stayText } from "./details.js";
 import { map, groups, drawItinerary, fitPoints, pinIcon, popupContent, focusOn, DAY_COLORS } from "./map.js";
@@ -70,16 +73,17 @@ const needStart = () => {
   return start.value;
 };
 
-const hoursSelect = (value, opts = [3, 4, 5, 6, 7, 8, 9, 10]) =>
-  el("select", {}, opts.map((h) => el("option", { value: h, selected: +h === +value }, `${h} h`)));
+/** Max. Fahrzeit pro Tag: Auswahl in Minuten (ab 15 min), gespeichert wird in Stunden. */
+const dayLimitSelect = (hours) => durationSelect(DURATIONS.day, Math.round(hours * 60));
+const hoursOf = (sel) => +sel.value / 60;
 
 // ---------------------------------------------------------------- Tagestrip
 function dayForm() {
   const date = el("input", { type: "date", value: todayBerlin() });
   const dep = el("input", { type: "time", value: "07:00" });
   const back = el("input", { type: "time", value: "22:00" });
-  const maxOne = el("select", {}, [1, 1.5, 2, 2.5, 3, 4, 5].map((h) => el("option", { value: h, selected: h === 2.5 }, `${String(h).replace(".", ",")} h`)));
-  const minStay = el("select", {}, [1, 2, 3, 4, 6].map((h) => el("option", { value: h, selected: h === 3 }, `${h} h`)));
+  const maxOne = durationSelect(DURATIONS.ride, 150);
+  const minStay = durationSelect(DURATIONS.stay, 180);
   const go = el("button", { class: "btn primary block" }, "Ziele finden");
   formBox.append(
     el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Datum"), date), el("div", { class: "field" }, el("label", {}, "Los ab"), dep), el("div", { class: "field" }, el("label", {}, "Zurück bis"), back)),
@@ -88,11 +92,13 @@ function dayForm() {
   go.onclick = () => {
     const s = needStart();
     if (!s) return;
-    busy(go, () => runDayTrip(s, { date: date.value, dep: dep.value, back: back.value, maxMin: +maxOne.value * 60, minStay: +minStay.value * 3600 }));
+    busy(go, () => runDayTrip(s, { date: date.value, dep: dep.value, back: back.value, maxMin: +maxOne.value, minStay: +minStay.value * 60 }));
   };
 }
 
-const colorForMinutes = (m) => (m <= 60 ? "#1e7b45" : m <= 105 ? "#7cb342" : m <= 150 ? "#f2a900" : m <= 210 ? "#ef6c00" : "#c62828");
+// Farbskala richtet sich nach der gewählten Höchstfahrzeit (auch bei 15 oder 30 Minuten sinnvoll)
+let scale = timeScale(150);
+const colorForMinutes = (m) => scale.color(m);
 
 /**
  * Erreichbare Orte als Linien vom Start aus zeichnen, jeder Abschnitt in der Farbe seiner Fahrzeit.
@@ -122,6 +128,7 @@ async function runDayTrip(home, o) {
   groups.daytrip.clearLayers();
   groups.trip.clearLayers();
   groups.route.clearLayers();
+  scale = timeScale(o.maxMin);
   const [outb, inb] = await Promise.all([
     oneToAll(home, berlinToISO(o.date, o.dep), { maxMinutes: o.maxMin }),
     oneToAll(home, berlinToISO(o.date, o.back), { maxMinutes: o.maxMin, arriveBy: true }),
@@ -165,8 +172,8 @@ async function runDayTrip(home, o) {
   renderList();
   const dl = direktLink(home);
   resultBox.append(
-    el("h3", {}, `${dests.length} Ziele auf ${tree.branches.length} Strecken, hin und zurück am selben Tag`),
-    el("div", { class: "legend small" }, ...[[60, "≤ 1 h"], [105, "≤ 1¾ h"], [150, "≤ 2½ h"], [210, "≤ 3½ h"], [999, "länger"]].map(([m, t]) => el("span", { style: { marginRight: "8px" } }, el("i", { style: { background: colorForMinutes(m) } }), t))),
+    el("h3", {}, `${dests.length} ${dests.length === 1 ? "Ziel" : "Ziele"} auf ${tree.branches.length} ${tree.branches.length === 1 ? "Strecke" : "Strecken"}, hin und zurück am selben Tag`),
+    scale.legend(),
     dl ? el("p", { class: "small" }, "Ohne Umstieg erreichbar: ", extLink(dl, "direkt.bahn.guru (nur Regionalverkehr)")) : null,
     el("div", { class: "field" }, el("label", {}, "Sortieren"), sortSel),
     list);
@@ -224,12 +231,12 @@ function weekendForm() {
   const dest = placeInput({ label: "Ziel", id: "we-dest", placeholder: "Wohin? (oder unten in der Karte suchen)" });
   // 2 Nächte = Freitag bis Sonntag, 1 Nacht = Samstag bis Sonntag
   const date = el("input", { type: "date", value: nextWeekday(todayBerlin(), 5) });
-  const nights = el("select", {}, el("option", { value: 1 }, "1 Nacht"), el("option", { value: 2, selected: true }, "2 Nächte"));
+  const nights = optionSelect([[1, "1 Nacht"], [2, "2 Nächte"]], 2);
   let dateTouched = false;
   date.addEventListener("change", () => (dateTouched = true));
   nights.addEventListener("change", () => { if (!dateTouched) date.value = nextWeekday(todayBerlin(), +nights.value === 2 ? 5 : 6); });
   const dep = el("input", { type: "time", value: state.prefs.departTime || "08:00" });
-  const maxH = hoursSelect(state.prefs.maxHours || 6);
+  const maxH = dayLimitSelect(state.prefs.maxHours || 6);
   const go = el("button", { class: "btn primary block" }, "Wochenende planen");
   const find = el("button", { class: "btn block" }, "Wo lohnt sich eine Nacht? Ziele in Reichweite zeigen");
   formBox.append(dest.node,
@@ -241,7 +248,9 @@ function weekendForm() {
     if (!s) return;
     busy(find, async () => {
       groups.daytrip.clearLayers();
-      const res = await oneToAll(s, berlinToISO(date.value, dep.value), { maxMinutes: Math.min(+maxH.value, 5) * 60 });
+      const reach = Math.min(+maxH.value, 300);
+      scale = timeScale(reach);
+      const res = await oneToAll(s, berlinToISO(date.value, dep.value), { maxMinutes: reach });
       const fake = { all: (res.all || []).map((r) => ({ ...r, place: { ...r.place, departure: "2099-01-01T00:00:00Z" } })) };
       // Mindestabstand 8 km statt 40 km, sonst fehlen die Halte nahe am Start und die Linien beginnen erst weit draußen.
       const dests = combineReachability(s, res, fake, { minStaySec: 0, minDistanceKm: 8 });
@@ -259,36 +268,26 @@ function weekendForm() {
     const s = needStart();
     if (!s) return;
     if (!dest.value) return toast("Bitte ein Ziel wählen.");
-    setPref("maxHours", +maxH.value); setPref("departTime", dep.value);
-    const params = { start: s, stops: [{ place: dest.value, nights: +nights.value }], roundtrip: true, startDate: date.value, departTime: dep.value, maxHours: +maxH.value };
+    setPref("maxHours", hoursOf(maxH)); setPref("departTime", dep.value);
+    const params = { start: s, stops: [{ place: dest.value, nights: +nights.value }], roundtrip: true, startDate: date.value, departTime: dep.value, maxHours: hoursOf(maxH) };
     busy(go, () => runTour({ kind: "weekend", name: `Wochenende ${dest.value.name}`, params }));
   };
 }
 
 // ---------------------------------------------------------------- Mehrtagestour
 const multi = (() => {
-  let stops = [];
-  let listBox, suggestDays, suggestBox;
-  const renderStops = () => {
-    if (!listBox) return;
-    listBox.replaceChildren(...stops.map((s, i) =>
-      el("li", {},
-        el("div", { class: "grow" }, el("strong", {}, `${i + 1}. ${s.place.name}`)),
-        el("select", { "aria-label": "Nächte", onchange: (e) => (s.nights = +e.target.value) }, [1, 2, 3, 4].map((n) => el("option", { value: n, selected: n === s.nights }, `${n} N.`))),
-        el("button", { class: "btn small", title: "nach oben", disabled: i === 0, onclick: () => { [stops[i - 1], stops[i]] = [stops[i], stops[i - 1]]; renderStops(); } }, "↑"),
-        el("button", { class: "btn small", title: "entfernen", onclick: () => { stops.splice(i, 1); renderStops(); } }, "✕"))));
-    if (!stops.length) listBox.append(el("li", { class: "muted small" }, "Noch keine Ziele. Unten hinzufügen oder einen Vorschlag holen."));
-  };
+  let suggestDays, suggestBox;
+  const nightsSelect = (v, onChange) => optionSelect([1, 2, 3, 4, 5].map((n) => [n, `${n} N.`]), v, { onchange: (e) => onChange(+e.target.value) });
+  const list = stopList({ field: "nights", makeSelect: nightsSelect, initial: 1, empty: "Noch keine Ziele. Unten hinzufügen oder einen Vorschlag holen." });
   return {
-    addStop(p) { stops.push({ place: p, nights: 1 }); renderStops(); toast(`${p.name} hinzugefügt`); },
+    addStop(p) { list.add(p); },
     focusSuggest() { suggestDays?.focus(); suggestBox?.scrollIntoView({ behavior: "smooth" }); },
     form() {
       const add = placeInput({ label: "Ziel hinzufügen", id: "multi-add", onSelect: (p) => { multi.addStop(p); add.value = null; } });
-      listBox = el("ul", { class: "list" });
       const round = el("input", { type: "checkbox", checked: true });
       const date = el("input", { type: "date", value: addDays(todayBerlin(), 1) });
       const dep = el("input", { type: "time", value: state.prefs.departTime || "08:00" });
-      const maxH = hoursSelect(state.prefs.maxHours || 6);
+      const maxH = dayLimitSelect(state.prefs.maxHours || 6);
       const go = el("button", { class: "btn primary block" }, "Tour planen");
       suggestDays = el("input", { type: "number", min: 2, max: 14, value: 7 });
       const sugBtn = el("button", { class: "btn" }, "Runde vorschlagen");
@@ -302,28 +301,27 @@ const multi = (() => {
         const fc = await loadStates();
         const homeState = stateAt(s.lat, s.lon, fc);
         const visited = [...visitedStates().all];
-        const r = suggestRoundtrip(s, +suggestDays.value, visited, { maxHours: +maxH.value, homeState });
+        const r = suggestRoundtrip(s, +suggestDays.value, visited, { maxHours: hoursOf(maxH), homeState });
         if (!r.length) return toast("Kein Vorschlag möglich – mehr Tage oder mehr Fahrzeit pro Tag wählen.");
-        stops = r.map((x) => ({ place: { name: x.hub.name, lat: x.hub.lat, lon: x.hub.lon }, nights: 1 }));
+        list.set(r.map((x) => ({ place: { name: x.hub.name, lat: x.hub.lat, lon: x.hub.lon }, nights: 1 })));
         round.checked = true;
-        renderStops();
         toast(`Neu: ${r.map((x) => STATES[x.state]).join(", ")}`, 5000);
       };
-      formBox.append(listBox, add.node,
+      formBox.append(list.node, add.node,
         el("label", { class: "check" }, round, "Rundreise (am Ende zurück zum Start)"),
         el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Start am"), date), el("div", { class: "field" }, el("label", {}, "Abfahrt"), dep), el("div", { class: "field" }, el("label", {}, "Max./Tag"), maxH)),
         go, suggestBox);
-      renderStops();
       go.onclick = () => {
         const s = needStart();
         if (!s) return;
+        const stops = list.copy();
         if (!stops.length) return toast("Bitte mindestens ein Ziel hinzufügen.");
-        setPref("maxHours", +maxH.value); setPref("departTime", dep.value);
-        const params = { start: s, stops: stops.map((x) => ({ ...x })), roundtrip: round.checked, startDate: date.value, departTime: dep.value, maxHours: +maxH.value };
-        busy(go, () => runTour({ kind: "multi", name: `Tour ${stops.map((x) => x.place.name.replace(/ Hbf$/, "")).join(" – ")}`, params }));
+        setPref("maxHours", hoursOf(maxH)); setPref("departTime", dep.value);
+        const params = { start: s, stops, roundtrip: round.checked, startDate: date.value, departTime: dep.value, maxHours: hoursOf(maxH) };
+        busy(go, () => runTour({ kind: "multi", name: `Tour ${stops.map((x) => cityName(x.place.name)).join(" – ")}`, params }));
       };
     },
-    setStops(s) { stops = s; renderStops(); },
+    setStops(s) { list.set(s); },
   };
 })();
 

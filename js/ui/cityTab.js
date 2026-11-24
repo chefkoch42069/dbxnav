@@ -1,7 +1,7 @@
 // Reiter „Stadt“: Stadt eingeben → Hauptbahnhof mit Linien, Ausstattung und Läden im Bahnhof und bis 500 m drumherum.
-import { el, clear, toast, spinnerLine, errorLine, extLink, osmLink, direktLink } from "./dom.js";
+import { el, clear, toast, spinnerLine, errorLine, extLink, osmLink, direktLink, plain } from "./dom.js";
 import { placeInput } from "./placeInput.js";
-import { map, groups, focusOn, pinIcon, setBase } from "./map.js";
+import { map, groups, focusOn, pinIcon, setBase, emojiIcon } from "./map.js";
 import { nav } from "./nav.js";
 import { addFavorite } from "../state.js";
 import { geocode, stopTimes } from "../api/transitous.js";
@@ -52,7 +52,7 @@ async function load(p, forced = null) {
     setBase("ÖPNVKarte");
     focusOn(station.lat, station.lon, 16);
     L.circle([station.lat, station.lon], { radius: RADIUS_M, color: "#1b4f9c", weight: 2, dashArray: "6 6", fill: false, interactive: false }).addTo(groups.places);
-    L.marker([station.lat, station.lon], { icon: pinIcon("🚉") }).addTo(groups.places).bindPopup(station.name.replace(/[<>&]/g, ""));
+    L.marker([station.lat, station.lon], { icon: pinIcon("🚉") }).addTo(groups.places).bindPopup(plain(station.name));
 
     const linesBox = el("div", {}, spinnerLine("Lade Linien und Takt …"));
     const shopsBox = el("div", {}, spinnerLine("Suche Läden im Bahnhof und bis 500 m …"));
@@ -119,7 +119,7 @@ async function loadShops(station, target, stale) {
   if (stale()) return;
   for (const s of shops) {
     const c = SHOP_CATS[s.cat];
-    L.marker([s.lat, s.lon], { icon: L.divIcon({ className: "", html: `<div style="font-size:18px;filter:drop-shadow(0 1px 1px #0008)">${c.icon}</div>`, iconSize: [20, 20] }), title: s.tags.name || c.label })
+    L.marker([s.lat, s.lon], { icon: emojiIcon(c.icon, 18), title: s.tags.name || c.label })
       .bindPopup(() => el("div", {}, el("strong", {}, `${c.icon} ${shopName(s)}`), el("br"), s.inside ? "im Bahnhof" : `${s.distM} m`,
         s.tags.opening_hours ? [el("br"), `🕒 ${ohDe(s.tags.opening_hours)}`] : null, el("br"), extLink(osmLink(s.lat, s.lon), "OSM")))
       .addTo(groups.places);

@@ -1,6 +1,7 @@
 // Mini-DOM-Helfer. Texte aus OSM/Fahrplan werden immer als Text gesetzt (kein innerHTML).
 import { groupOf } from "../planner/departures.js";
 import { lineName } from "../planner/dticket.js";
+import { fmtMinutes } from "../lib/time.js";
 
 export function el(tag, attrs = {}, ...children) {
   const n = document.createElement(tag);
@@ -85,4 +86,25 @@ export function osmLink(lat, lon, zoom = 17) {
 
 export function extLink(href, text) {
   return el("a", { href, target: "_blank", rel: "noopener" }, text);
+}
+
+/** Text für Leaflet-Popups/Tooltips entschärfen (die nehmen HTML). */
+export const plain = (s) => String(s ?? "").replace(/[<>&"]/g, "");
+
+/** Auswahlfeld aus [wert, text]-Paaren. */
+export function optionSelect(pairs, selected, attrs = {}) {
+  return el("select", attrs, pairs.map(([v, t]) => el("option", { value: v, selected: String(v) === String(selected) }, t)));
+}
+
+/** Übliche Dauern in Minuten – überall ab 15 und 30 Minuten wählbar. */
+export const DURATIONS = {
+  stay: [15, 30, 45, 60, 90, 120, 180, 240, 360],
+  ride: [15, 30, 45, 60, 90, 120, 150, 180, 240, 300],
+  day: [15, 30, 45, 60, 90, 120, 180, 240, 300, 360, 420, 480, 540, 600, 720],
+  reach: [15, 30, 45, 60, 90, 120, 180, 240, 300, 360, 480],
+};
+
+/** Auswahlfeld für eine Dauer; Werte in Minuten, Beschriftung „15 min“, „1 h 30 min“. */
+export function durationSelect(minutes, selected, attrs = {}, extra = []) {
+  return optionSelect([...minutes.map((m) => [m, fmtMinutes(m)]), ...extra], selected, attrs);
 }

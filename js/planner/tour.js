@@ -2,6 +2,7 @@
 import { addDays, berlinToISO } from "../lib/time.js";
 import { pickBest, pickLatest, DTICKET_RULES } from "./dticket.js";
 import { chooseCut, truncateItinerary } from "./stages.js";
+import { rideLegs } from "../lib/legs.js";
 
 export const placeOf = (p) => ({ name: p.name, lat: p.lat, lon: p.lon, stopId: p.stopId });
 
@@ -74,7 +75,7 @@ export async function planTour(params, api, onProgress = () => {}, rules = DTICK
 
 /** Ankunft des letzten Fahrzeugs (ohne Fußweg am Ende, der bei arriveBy an die Wunschzeit geklebt wird). */
 export function transitArrival(it) {
-  const legs = it.legs.filter((l) => l.mode !== "WALK");
+  const legs = rideLegs(it);
   return (legs[legs.length - 1] || it).endTime;
 }
 
