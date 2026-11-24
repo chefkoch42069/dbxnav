@@ -1,7 +1,7 @@
 // Wiederverwendbare Ansichten: Verbindung, Unterkünfte, Bahnhofs-Infos, Ausflugsziele, Wetter.
 import { el, clear, badgeFor, spinnerLine, errorLine, extLink, osmLink, toast } from "./dom.js";
 import { fmtTime, fmtDuration, diffSec } from "../lib/time.js";
-import { checkLeg, lineName } from "../planner/dticket.js";
+import { lineName, DTICKET_RULES } from "../planner/dticket.js";
 import { estimatePrice, ratingOrder, TYPE_LABEL } from "../planner/accommodation.js";
 import { accommodations, stationInfo, stationCategory, sights, sightCategory, hikingRoutes, waymarkedLink, libraries } from "../api/overpass.js";
 import { forecast } from "../api/weather.js";
@@ -9,14 +9,14 @@ import { map, groups, popupContent, focusOn, trackLabel, showOverlay } from "./m
 import { addFavorite } from "../state.js";
 import { APP } from "../config.js";
 
-export function renderItinerary(it) {
+export function renderItinerary(it, rules = DTICKET_RULES) {
   const ul = el("ul", { class: "legs" });
   for (const leg of it.legs) {
     if (leg.mode === "WALK") {
       if (leg.duration >= 120) ul.append(el("li", {}, el("span", { class: "t muted" }, fmtTime(leg.startTime)), el("span", { class: "muted" }, "🚶"), el("span", { class: "muted small" }, `${Math.round(leg.duration / 60)} min Fußweg`)));
       continue;
     }
-    const chk = checkLeg(leg);
+    const chk = rules.checkLeg(leg);
     ul.append(
       el("li", {},
         el("span", { class: "t" }, fmtTime(leg.startTime)),

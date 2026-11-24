@@ -27,9 +27,9 @@ export async function reverseStop(lat, lon) {
 }
 
 /** Verbindungen. IC-Ausnahmen: zusätzlich Fernverkehr anfragen, dann wird gefiltert. */
-export async function plan(from, to, isoTime, { arriveBy = false, numItineraries = 4, useIcExceptions = true } = {}) {
-  const modes = [...TRANSITOUS.dticketModes];
-  if (useIcExceptions && IC_EXCEPTIONS.length) modes.push("LONG_DISTANCE");
+export async function plan(from, to, isoTime, { arriveBy = false, numItineraries = 4, useIcExceptions = true, modes: modeList = null } = {}) {
+  const modes = modeList ? [...modeList] : [...TRANSITOUS.dticketModes];
+  if (!modeList && useIcExceptions && IC_EXCEPTIONS.length) modes.push("LONG_DISTANCE");
   const res = await getJSON(
     `${B}/api/v5/plan?${qs({
       fromPlace: ll(from), toPlace: ll(to), time: isoTime, arriveBy,
@@ -41,11 +41,11 @@ export async function plan(from, to, isoTime, { arriveBy = false, numItineraries
   return res?.itineraries || [];
 }
 
-export async function oneToAll(place, isoTime, { maxMinutes = 180, arriveBy = false, maxTransfers = 4, signal } = {}) {
+export async function oneToAll(place, isoTime, { maxMinutes = 180, arriveBy = false, maxTransfers = 4, signal, modes = TRANSITOUS.railModes } = {}) {
   return getJSON(
     `${B}/api/v1/one-to-all?${qs({
       one: `${place.lat},${place.lon}`, time: isoTime, arriveBy, maxTravelTime: maxMinutes,
-      transitModes: TRANSITOUS.railModes.join(","), maxTransfers,
+      transitModes: modes.join(","), maxTransfers,
     })}`,
     { timeout: 60000, signal }
   );

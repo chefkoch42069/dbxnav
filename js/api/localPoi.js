@@ -47,8 +47,11 @@ export async function localElements(center, { radiusM = 1500, bounds = null } = 
   const index = await loadIndex();
   if (!index) return null;
   const bb = bounds || boundsAround(center, radiusM);
-  const keys = tilesForBounds(bb, index.zoom).filter((k) => index.tiles.has(k));
-  if (keys.length > 64) throw new Error("Ausschnitt zu groß – bitte näher heranzoomen.");
+  const all = tilesForBounds(bb, index.zoom);
+  if (all.length > 64) throw new Error("Ausschnitt zu groß – bitte näher heranzoomen.");
+  const keys = all.filter((k) => index.tiles.has(k));
+  // Keine einzige Kachel vorhanden: vermutlich außerhalb der Daten (z. B. Ausland) → Overpass fragen
+  if (!keys.length) return null;
   const lists = await Promise.all(keys.map((k) => loadTile(k, index.zoom)));
   const [s, w, n, e] = bb;
   const out = [];

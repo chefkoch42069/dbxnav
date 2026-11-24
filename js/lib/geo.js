@@ -112,3 +112,30 @@ export function tilesAlong(points, zooms, max = Infinity) {
   }
   return out;
 }
+
+/**
+ * Schneller Punkt→Gebiet-Lookup für eine FeatureCollection (z. B. Länder).
+ * Vorfilter über das umgebende Rechteck; kleine Gebiete (Enklaven wie Vatikan) zuerst.
+ * @returns (lat, lon) → properties.id oder null
+ */
+export function makeLocator(fc) {
+  const items = fc.features.map((f) => {
+    let s = 90, w = 180, n = -90, e = -180;
+    const polys = f.geometry.type === "MultiPolygon" ? f.geometry.coordinates : [f.geometry.coordinates];
+    for (const poly of polys) for (const [x, y] of poly[0]) { s = Math.min(s, y); n = Math.max(n, y); w = Math.min(w, x); e = Math.max(e, x); }
+    return { f, s, w, n, e, area: (n - s) * (e - w) };
+  }).sort((a, b) => a.area - b.area);
+  const cache = new Map();
+  return (lat, lon) => {
+    const k = `${lat.toFixed(3)},${lon.toFixed(3)}`;
+    if (cache.has(k)) return cache.get(k);
+    let id = null;
+    for (const it of items) {
+      if (lat < it.s || lat > it.n || lon < it.w || lon > it.e) continue;
+      if (pointInGeometry(lat, lon, it.f.geometry)) { id = it.f.properties.id; break; }
+    }
+    if (cache.size > 5000) cache.clear();
+    cache.set(k, id);
+    return id;
+  };
+}

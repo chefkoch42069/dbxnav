@@ -69,6 +69,17 @@ Für alle Reisearten:
 - **Wetter** am Etappenort (DWD-Daten über Bright Sky) und **Regenradar** des DWD als Kartenebene.
 - Links zum Gegenprüfen bei **bahn.de/DB Navigator** und zu **direkt.bahn.guru** („Wohin komme ich direkt?“).
 
+**International (Interrail Global Pass)**:
+- Länderkarte: wo der Pass gilt (grün), Wohnland (gelb, nur je eine Fahrt hinaus und zurück), Länder außerhalb (grau).
+- „Erreichbare Ziele zeigen“: Fernbahnhöfe in Europa, die man ab dem Start in X Stunden erreicht. Antippen fügt das Ziel zur Tour hinzu.
+- Tourplanung wie beim D-Ticket (Etappen nach Fahrzeit, letzte Verbindung, Unterkünfte), aber mit ICE/IC/TGV/Railjet und optional Nachtzügen. Ein Nachtzug ist ein ganzer Reisetag ohne Hotel.
+- Hinweise pro Abschnitt: Reservierungspflicht (Faustregel je Land, Eurostar, Nachtzüge), Privatbahnen ohne Pass (Italo, FlixTrain, Iryo, Ouigo, WESTbahn, RegioJet, Leo Express), Stadtverkehr nicht im Pass.
+- Pass-Übersicht: Reisetage, Spanne, Anzahl Reservierungen und die passende Variante (flexibel 4/5/7/10/15 Tage oder durchgehend).
+- Warnung, wenn eine Fahrt mitten in der Reise nur durchs Wohnland führt.
+
+Länderliste, Reservierungs-Faustregel und Privatbahnen stehen in `INTERRAIL` in `js/config.js` und sind als *ungeprüft* markiert.
+Bitte vor der Reise auf interrail.eu bestätigen.
+
 **Abfahrtstafel**: Bahnhof eingeben → alle Abfahrten oder Ankünfte mit D-Ticket, also Regionalzug, S-Bahn,
 U-Bahn, Tram, Bus und Fähre, auch von Haltestellen direkt am Bahnhof. Filter je Verkehrsmittel, Verspätungen,
 Gleis, Fernverkehr optional ausgegraut. Antippen zeigt den Fahrtverlauf auf der Karte, und von jedem Halt kann man
@@ -129,7 +140,7 @@ js/config.js          zentrale Einstellungen
 js/api/               Transitous, Overpass, Wetter
 js/planner/           reine Logik (getestet): D-Ticket-Prüfung, Etappen, Touren, Tagestrip, Rundreise, Unterkünfte, Abfahrten, Unterwegs
 js/ui/                Reiter, Karte, Eingabefelder
-data/                 Bundesländer (Natural Earth, gemeinfrei, vereinfacht)
+data/                 Bundesländer und europäische Länder (Natural Earth, gemeinfrei, vereinfacht)
 vendor/leaflet/       Leaflet 1.9.4 (für offline)
 tools/                Daten-Pipeline: OSM-Auszug → Ortsdaten-Kacheln
 .github/workflows/    Tests, Daten erzeugen, GitHub Pages

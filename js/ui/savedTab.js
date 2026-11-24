@@ -23,7 +23,7 @@ function render() {
 
   const tours = el("ul", { class: "list" }, state.tours.map((t) =>
     el("li", {}, el("div", { class: "grow" }, el("strong", {}, t.name), el("span", { class: "muted small" }, `${fmtDate(t.params.startDate)} · ${t.days.length} Tage`)),
-      el("button", { class: "btn small", onclick: () => { nav.switchTab("plan"); nav.plan.openTour(t); } }, "Öffnen"),
+      el("button", { class: "btn small", onclick: () => { if (t.kind === "interrail") nav.interrail.openTour(t); else { nav.switchTab("plan"); nav.plan.openTour(t); } } }, "Öffnen"),
       el("button", { class: "btn small", title: "löschen", onclick: () => confirm(`„${t.name}“ löschen?`) && removeById("tours", t.id) }, "✕"))));
 
   const jDate = el("input", { type: "date", value: todayBerlin() });

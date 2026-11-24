@@ -153,3 +153,30 @@ export const STATES = {
 
 // Faustwert für Luftlinien-km pro Fahrstunde im Nahverkehr (inkl. Umstiege).
 export const AIR_KM_PER_HOUR = 45;
+
+// ---------------------------------------------------------------------------
+// Interrail Global Pass (für Menschen mit Wohnsitz in Europa; sonst „Eurail“).
+// Länderliste und Regeln ändern sich – Stand bitte auf interrail.eu prüfen.
+// ---------------------------------------------------------------------------
+export const INTERRAIL = {
+  checked: "ungeprüft – Stand bitte auf interrail.eu bestätigen",
+  // ISO-Ländercodes, in denen der Global Pass gilt
+  countries: [
+    "AT", "BE", "BA", "BG", "HR", "CZ", "DK", "EE", "FI", "FR", "DE", "GB", "GR", "HU", "IE", "IT", "LV",
+    "LT", "LU", "ME", "NL", "MK", "NO", "PL", "PT", "RO", "RS", "SK", "SI", "ES", "SE", "CH", "TR",
+  ],
+  // Im Wohnland gilt der Pass nur für je eine Fahrt aus dem Land hinaus und zurück.
+  defaultHome: "DE",
+  // Faustregel: In diesen Ländern brauchen Fern- und Hochgeschwindigkeitszüge eine Reservierung.
+  reservationCountries: ["FR", "ES", "IT", "PT", "SE", "NO", "PL", "GR", "TR"],
+  // Betreiber, die (meist) nicht im Pass enthalten sind – Abgleich mit Betreiber- und Zugnamen.
+  notCovered: /\b(italo|ntv|flixtrain|flix|iryo|ouigo|westbahn|regiojet|leo express|snälltåget)\b/i,
+  // Pass-Varianten: flexibel (Reisetage innerhalb eines Zeitraums) oder durchgehend.
+  flexi: [
+    { days: 4, within: 30 }, { days: 5, within: 30 }, { days: 7, within: 30 },
+    { days: 10, within: 60 }, { days: 15, within: 60 },
+  ],
+  continuous: [15, 22, 30, 60, 90],
+  modes: ["HIGHSPEED_RAIL", "LONG_DISTANCE", "REGIONAL_FAST_RAIL", "REGIONAL_RAIL", "SUBURBAN", "SUBWAY", "TRAM", "BUS", "FERRY"],
+  nightMode: "NIGHT_RAIL",
+};

@@ -5,6 +5,7 @@ import { initPlanTab } from "./ui/planTab.js";
 import { initBoardTab } from "./ui/boardTab.js";
 import { initCollectTab } from "./ui/collectTab.js";
 import { initBudgetTab } from "./ui/budgetTab.js";
+import { initInterrailTab } from "./ui/interrailTab.js";
 import { initSavedTab } from "./ui/savedTab.js";
 import { registerSW } from "./offline.js";
 import { loadStates } from "./ui/statesData.js";
@@ -27,6 +28,7 @@ document.getElementById("panelGrip").addEventListener("click", () => panel.class
 initPlanTab(document.getElementById("tab-plan"));
 initBoardTab(document.getElementById("tab-board"));
 initBudgetTab(document.getElementById("tab-budget"));
+initInterrailTab(document.getElementById("tab-intl"));
 initCollectTab(document.getElementById("tab-collect"));
 initSavedTab(document.getElementById("tab-saved"));
 

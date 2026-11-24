@@ -4,4 +4,5 @@ export const nav = {
   plan: { setStart: () => {}, addStop: () => {}, openTour: () => {}, suggestRoundtrip: () => {} },
   board: { open: () => {} },
   budget: { open: () => {} },
+  interrail: { addStop: () => {}, openTour: () => {} },
 };
