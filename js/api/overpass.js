@@ -1,19 +1,38 @@
 // OpenStreetMap über Overpass: Unterkünfte, Bahnhofs-Infos, Ausflugsziele.
 // GET statt POST, damit der Service Worker Antworten für offline zwischenspeichern kann.
-import { OVERPASS_ENDPOINTS } from "../config.js";
+import { OVERPASS_ENDPOINTS, OVERPASS_TIMEOUT_S } from "../config.js";
 import { getJSON } from "./http.js";
 import { distanceKm } from "../lib/geo.js";
 
-async function query(ql) {
-  let lastErr;
-  for (const ep of OVERPASS_ENDPOINTS) {
+let preferred = 0; // Index des zuletzt erfolgreichen Servers
+const memo = new Map(); // gleiche Abfrage in dieser Sitzung nicht doppelt stellen
+
+/** Reihenfolge der Server: zuletzt erfolgreicher zuerst. */
+export function endpointOrder(list, first) {
+  return list.map((_, i) => list[(first + i) % list.length]);
+}
+
+export async function query(ql) {
+  // Server-Timeout einsetzen; der Browser wartet etwas länger als der Server.
+  const q = ql.replace(/\[timeout:\d+\]/, `[timeout:${OVERPASS_TIMEOUT_S}]`);
+  if (memo.has(q)) return memo.get(q);
+  const errors = [];
+  for (const ep of endpointOrder(OVERPASS_ENDPOINTS, preferred)) {
     try {
-      return await getJSON(`${ep}?data=${encodeURIComponent(ql)}`, { timeout: 40000 });
+      const res = await getJSON(`${ep}?data=${encodeURIComponent(q)}`, { timeout: (OVERPASS_TIMEOUT_S + 8) * 1000 });
+      if (res?.remark && /timed out|out of memory/i.test(res.remark) && !res.elements?.length) throw new Error("Abfrage zu groß");
+      preferred = OVERPASS_ENDPOINTS.indexOf(ep);
+      memo.set(q, res);
+      if (memo.size > 50) memo.delete(memo.keys().next().value);
+      return res;
     } catch (e) {
-      lastErr = e;
+      errors.push(`${new URL(ep).hostname}: ${e.message}`);
     }
   }
-  throw lastErr || new Error("Overpass nicht erreichbar");
+  console.warn("Overpass:", errors);
+  throw new Error(
+    "OpenStreetMap-Server (Overpass) sind gerade überlastet oder nicht erreichbar. Kleineren Umkreis wählen oder in einer Minute nochmal probieren."
+  );
 }
 
 function elements(res, center) {
@@ -120,16 +139,17 @@ out center tags 60;`;
 // ---- Unterwegs-Modus: kostenlos & billig ----
 export async function budgetPlaces(center, radiusM = 1500) {
   const a = `(around:${radiusM},${center.lat},${center.lon})`;
-  const ql = `[out:json][timeout:40];
+  // Bewusst keine Namenssuche (z. B. name~"Tafel"): die zwingt den Server, jedes
+  // benannte Objekt im Umkreis zu prüfen, und führt in Innenstädten zu 502/Timeouts.
+  // Bahnhofsmission, Tafeln & Co. sind in OSM als social_facility eingetragen.
+  const ql = `[out:json][timeout:25];
 (
   nwr["amenity"~"^(drinking_water|water_point|toilets|shower|device_charging_station|food_sharing|give_box|shelter|social_facility|library|fast_food|canteen)$"]${a};
-  nwr["social_facility"]${a};
   nwr["shop"~"^(supermarket|bakery)$"]${a};
   nwr["internet_access"~"^(wlan|yes|wifi|public)$"]["internet_access:fee"="no"]${a};
   nwr["power_supply"="yes"]${a};
-  nwr["name"~"Bahnhofsmission|Fairteiler|Tafel",i]${a};
 );
-out center tags 500;`;
+out center tags 400;`;
   return elements(await query(ql), center);
 }
 

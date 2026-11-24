@@ -6,6 +6,7 @@ export async function getJSON(url, { timeout = 30000, signal } = {}) {
   try {
     const res = await fetch(url, { signal: ctrl.signal });
     if (res.status === 429) throw new Error("Zu viele Anfragen – bitte kurz warten.");
+    if (res.status === 502 || res.status === 503 || res.status === 504) throw new Error(`Server überlastet (${res.status})`);
     if (!res.ok) throw new Error(`Server antwortet mit ${res.status}`);
     return await res.json();
   } catch (e) {

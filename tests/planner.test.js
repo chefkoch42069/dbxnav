@@ -8,7 +8,7 @@ import { combineReachability } from "../js/planner/daytrip.js";
 import { suggestRoundtrip } from "../js/planner/roundtrip.js";
 import { estimatePrice } from "../js/planner/accommodation.js";
 import { prepareDepartures, groupOf } from "../js/planner/departures.js";
-import { hikingInfo, libraryInfo, waymarkedLink } from "../js/api/overpass.js";
+import { hikingInfo, libraryInfo, waymarkedLink, endpointOrder } from "../js/api/overpass.js";
 import { classify } from "../js/planner/budget.js";
 
 const A = P("Hamburg Hbf", 53.55, 10.0), B = P("Uelzen", 52.97, 10.55), C = P("Hannover Hbf", 52.38, 9.74),
@@ -192,4 +192,9 @@ test("Unterwegs-Modus: Orte richtig einordnen", () => {
   assert.equal(mc.cat, "cheapfood");
   assert.deepEqual(mc.extras, ["wifi"]);
   assert.equal(classify({ amenity: "bench" }), null);
+});
+
+test("Overpass: zuletzt erfolgreicher Server zuerst", () => {
+  assert.deepEqual(endpointOrder(["a", "b", "c"], 0), ["a", "b", "c"]);
+  assert.deepEqual(endpointOrder(["a", "b", "c"], 2), ["c", "a", "b"]);
 });

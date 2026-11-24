@@ -1,5 +1,5 @@
 // Service Worker: App offline verfügbar, Kacheln zwischenspeichern (begrenzt), API-Antworten als Rückfall.
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL = `shell-${VERSION}`;
 const TILES = "tiles";
 const API = "api";
@@ -20,7 +20,7 @@ const SHELL_FILES = [
 ];
 
 const TILE_HOSTS = ["tile.openstreetmap.de", "tileserver.memomaps.de", "tiles.openrailwaymap.org", "tile.waymarkedtrails.org"];
-const API_HOSTS = ["api.transitous.org", "overpass-api.de", "overpass.private.coffee", "api.brightsky.dev"];
+const API_HOSTS = ["api.transitous.org", "overpass-api.de", "overpass.private.coffee", "overpass.kumi.systems", "maps.mail.ru", "api.brightsky.dev"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(SHELL).then((c) => c.addAll(SHELL_FILES)).then(() => self.skipWaiting()));
