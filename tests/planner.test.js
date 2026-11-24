@@ -5,6 +5,13 @@ import { checkLeg, checkItinerary, pickBest, pickLatest, matchException } from "
 import { cutCandidates, chooseCut, truncateItinerary } from "../js/planner/stages.js";
 import { planTour } from "../js/planner/tour.js";
 import { combineReachability } from "../js/planner/daytrip.js";
+import { buildReachTree } from "../js/planner/reachTree.js";
+import { classifyFree, bboxHectares } from "../js/planner/homeless.js";
+import { parseCity } from "../js/api/city.js";
+import { parseMeters, walkHours, fmtHours, symbolText } from "../js/planner/hiking.js";
+import { shopCategory, wayToPolygon, placeShops, pickMainStation, linesFromDepartures } from "../js/planner/city.js";
+import { classifyInfra, voltageText, maxKv, mergeSegments, infraTitle } from "../js/planner/infra.js";
+import { distanceKm } from "../js/lib/geo.js";
 import { suggestRoundtrip } from "../js/planner/roundtrip.js";
 import { estimatePrice } from "../js/planner/accommodation.js";
 import { prepareDepartures, groupOf } from "../js/planner/departures.js";
@@ -161,6 +168,11 @@ test("Wanderwege: Netz, Länge, Link", () => {
   assert.equal(i.km, 169.3);
   assert.equal(i.ends, "Hörschel → Blankenstein");
   assert.equal(hikingInfo({ ref: "X1" }).name, "X1");
+  const etappe = hikingInfo({ name: "Etappe", distance: "15", ascent: "300 m", descent: "250" });
+  assert.equal(etappe.ascent, 300); assert.equal(etappe.descent, 250); assert.ok(Math.abs(etappe.hours - 4.5) < 1e-9, "3,75 h Strecke + 1,5 h Höhe / 2");
+  const fern = hikingInfo({ name: "E8", distance: "4390" });
+  assert.equal(fern.hours, null, "keine Gehzeit für Fernwege");
+  assert.equal(fern.days, 220);
   assert.equal(waymarkedLink("relation/12345"), "https://hiking.waymarkedtrails.org/#route?id=12345");
 });
 
@@ -198,6 +210,8 @@ test("Unterwegs-Modus: Orte richtig einordnen", () => {
 test("Overpass: zuletzt erfolgreicher Server zuerst", () => {
   assert.deepEqual(endpointOrder(["a", "b", "c"], 0), ["a", "b", "c"]);
   assert.deepEqual(endpointOrder(["a", "b", "c"], 2), ["c", "a", "b"]);
+  // kürzlich ausgefallene Server ans Ende, abgelaufene Sperre zählt nicht
+  assert.deepEqual(endpointOrder(["a", "b", "c"], 0, { a: 2000, b: 500 }, 1000), ["b", "c", "a"]);
 });
 
 test("Unterwegs-Modus: typische Fehlerquellen", () => {
@@ -242,4 +256,147 @@ test("Unterwegs-Abfrage: Rechteck statt around, keine Namenssuche über alles", 
   assert.match(q, /\[bbox:50\.0936/);
   assert.doesNotMatch(q, /around/);
   assert.doesNotMatch(q, /^\s*nwr\["name"/m);
+});
+
+test("buildReachTree: Orte entlang einer Strecke werden zu einer Linie verbunden", () => {
+  const home = P("Start", 50.0, 10.0);
+  const d = (name, lat, lon, outMinutes) => ({ ...P(name, lat, lon), outMinutes });
+  // Nach Norden: A → B → C, nach Osten: D → E, dazu ein Abzweig F von B nach Westen
+  const dests = [
+    d("C", 50.6, 10.0, 90), d("A", 50.2, 10.0, 20), d("B", 50.4, 10.0, 50),
+    d("E", 50.0, 10.6, 70), d("D", 50.0, 10.3, 30), d("F", 50.4, 9.8, 65),
+  ];
+  const { nodes, branches } = buildReachTree(home, dests);
+  const parentOf = (n) => { const x = nodes.find((y) => y.name === n); return x.parent < 0 ? "Start" : nodes[x.parent].name; };
+  assert.equal(parentOf("A"), "Start");
+  assert.equal(parentOf("B"), "A");
+  assert.equal(parentOf("C"), "B");
+  assert.equal(parentOf("D"), "Start");
+  assert.equal(parentOf("E"), "D");
+  assert.equal(parentOf("F"), "B");
+  const lines = branches.map((b) => [b.from.name, ...b.stops.map((s) => s.name)].join("-")).sort();
+  assert.deepEqual(lines, ["B-F", "Start-A-B-C", "Start-D-E"]);
+  assert.equal(branches.find((b) => b.end.name === "C").stops.length, 3);
+});
+
+test("buildReachTree: leere Eingabe", () => {
+  assert.deepEqual(buildReachTree(P("S", 50, 10), []), { nodes: [], branches: [] });
+});
+
+test("classifyFree: Parks, Museen, Kirchen, Bücherschränke", () => {
+  assert.equal(classifyFree({ leisure: "park", name: "Karlsaue" }).cat, "park");
+  assert.equal(classifyFree({ leisure: "park" }), null, "Parks ohne Namen weglassen");
+  assert.equal(classifyFree({ leisure: "garden", name: "Hof", "garden:type": "private" }), null);
+  assert.equal(classifyFree({ leisure: "garden", name: "Botanischer Garten", "garden:type": "botanical" }).note, "Botanischer Garten");
+  assert.equal(classifyFree({ leisure: "park", name: "Privatpark", access: "private" }), null);
+  const m = classifyFree({ tourism: "museum", name: "Stadtmuseum", fee: "no" });
+  assert.equal(m.cat, "museum"); assert.equal(m.free, true);
+  assert.equal(classifyFree({ tourism: "museum", name: "Kunsthalle" }).free, false, "Eintritt unbekannt = nicht kostenlos");
+  assert.equal(classifyFree({ amenity: "place_of_worship", name: "Dom", building: "cathedral" }).cat, "church");
+  assert.equal(classifyFree({ amenity: "public_bookcase" }).cat, "books");
+  assert.equal(classifyFree({ leisure: "fitness_station" }).cat, "fitness");
+  assert.equal(classifyFree({ shop: "mall", name: "City-Point" }).cat, "mall");
+  assert.equal(classifyFree({ historic: "castle", name: "Löwenburg", fee: "yes" }).free, false);
+  assert.equal(classifyFree({ amenity: "bench" }), null);
+});
+
+test("bboxHectares: grobe Fläche aus dem Rechteck", () => {
+  // 0,01° × 0,01° bei 51° ≈ 1,113 km × 0,700 km ≈ 78 ha
+  const ha = bboxHectares({ minlat: 51, maxlat: 51.01, minlon: 9, maxlon: 9.01 });
+  assert.ok(ha > 70 && ha < 85, `ha=${ha}`);
+  assert.equal(bboxHectares(undefined), 0);
+});
+
+test("parseCity: Nominatim-Antwort → Name, Rechteck, Umriss als lat/lon", () => {
+  const c = parseCity({
+    name: "Kassel", osm_type: "relation", boundingbox: ["51.26", "51.37", "9.35", "9.57"],
+    geojson: { type: "Polygon", coordinates: [[[9.35, 51.26], [9.57, 51.26], [9.57, 51.37], [9.35, 51.26]]] },
+  });
+  assert.equal(c.name, "Kassel");
+  assert.deepEqual(c.bounds, [51.26, 9.35, 51.37, 9.57]);
+  assert.deepEqual(c.outline[0][1], [51.26, 9.57]);
+  assert.equal(parseCity({ osm_type: "node", boundingbox: ["1", "2", "3", "4"] }), null, "Punkt statt Gemeindegrenze");
+  assert.equal(parseCity(null), null);
+});
+
+test("Wandern: Höhenmeter lesen, Gehzeit nach DIN 33466, Markierung", () => {
+  assert.equal(parseMeters("450"), 450);
+  assert.equal(parseMeters("450 m"), 450);
+  assert.equal(parseMeters("1.200 m"), 1200);
+  assert.equal(parseMeters("1,2 km"), 1200);
+  assert.equal(parseMeters("viel"), null);
+  assert.equal(parseMeters(undefined), null);
+  // 12 km, 600 Hm hoch, 600 runter: Strecke 3 h, Höhe 2 h + 1,2 h = 3,2 h → 3,2 + 3/2 = 4,7 h
+  assert.ok(Math.abs(walkHours(12, 600, 600) - 4.7) < 1e-9);
+  assert.equal(walkHours(8), 2);
+  assert.equal(walkHours(null), null);
+  assert.equal(fmtHours(4.7), "4:45 h");
+  assert.equal(fmtHours(2), "2 h");
+  assert.equal(fmtHours(0.5), "30 min");
+  assert.equal(symbolText("red:white:red_bar"), "rot Balken auf weiß");
+  assert.equal(symbolText("blue:white:blue_lower:X1:black"), "blau Winkel unten auf weiß, Text „X1“");
+  assert.equal(symbolText(null), null);
+});
+
+test("Stadt: Ladenkategorien, Bahnhofsumriss, im Bahnhof oder Umkreis", () => {
+  assert.equal(shopCategory({ shop: "supermarket" }), "food");
+  assert.equal(shopCategory({ amenity: "cafe" }), "bakery");
+  assert.equal(shopCategory({ amenity: "fast_food" }), "eat");
+  assert.equal(shopCategory({ amenity: "pharmacy" }), "health");
+  assert.equal(shopCategory({ shop: "newsagent" }), "press");
+  assert.equal(shopCategory({ amenity: "atm" }), "money");
+  assert.equal(shopCategory({ amenity: "toilets" }), "service");
+  assert.equal(shopCategory({ shop: "clothes" }), "other");
+  assert.equal(shopCategory({ shop: "vacant" }), null);
+  assert.equal(shopCategory({ amenity: "bench" }), null);
+
+  assert.equal(wayToPolygon([{ lat: 0, lon: 0 }, { lat: 1, lon: 0 }, { lat: 1, lon: 1 }]), null, "offener Weg");
+  const poly = wayToPolygon([{ lat: 50.0, lon: 7.0 }, { lat: 50.002, lon: 7.0 }, { lat: 50.002, lon: 7.003 }, { lat: 50.0, lon: 7.003 }, { lat: 50.0, lon: 7.0 }]);
+  const st = { lat: 50.001, lon: 7.0015 };
+  const shops = placeShops(st, [
+    { id: "n/1", lat: 50.001, lon: 7.001, tags: { shop: "bakery", name: "Im Bahnhof" } },
+    { id: "n/2", lat: 50.004, lon: 7.0015, tags: { shop: "kiosk", name: "Vorplatz" } },
+    { id: "n/3", lat: 50.02, lon: 7.0, tags: { shop: "kiosk", name: "Zu weit" } },
+    { id: "n/4", lat: 50.001, lon: 7.002, tags: { amenity: "bench" } },
+    { id: "n/1", lat: 50.001, lon: 7.001, tags: { shop: "bakery", name: "Doppelt" } },
+  ], [poly]);
+  assert.deepEqual(shops.map((s) => [s.tags.name, s.inside]), [["Im Bahnhof", true], ["Vorplatz", false]]);
+  // ohne Umriss: nah am Bahnhofspunkt zählt als „im Bahnhof“
+  assert.equal(placeShops(st, [{ id: "a", lat: 50.0012, lon: 7.0015, tags: { shop: "kiosk" } }]).at(0).inside, true);
+});
+
+test("Stadt: Hauptbahnhof wählen, Linien aus Abfahrten", () => {
+  const city = { name: "Koblenz", lat: 50.356, lon: 7.598 };
+  const S = (name, lat, lon, rail = true) => ({ type: "STOP", name, lat, lon, rail });
+  const pick = pickMainStation(city, [S("Koblenz Stadtmitte", 50.357, 7.596), S("Koblenz Hbf", 50.351, 7.589), S("Bushalt Markt", 50.36, 7.6, false), S("Köln Hbf", 50.94, 6.96)]);
+  assert.equal(pick.name, "Koblenz Hbf");
+  assert.equal(pickMainStation(city, [S("Bushalt", 50.36, 7.6, false)]), null);
+
+  const d = (group, routeShortName, headsign) => ({ group, routeShortName, headsign, mode: "BUS" });
+  const lines = linesFromDepartures([d("bus", "10", "Lützel"), d("bus", "10", "Lützel"), d("bus", "10", "Horchheim"), d("bus", "2", "Metternich"), d("zug", "RE 1", "Trier")]);
+  assert.deepEqual(lines.map((l) => l.name), ["2", "10", "RE 1"], "numerisch sortiert");
+  assert.deepEqual(lines.find((l) => l.name === "10").dests, ["Lützel", "Horchheim"]);
+});
+
+test("Infrastruktur: Einordnung, Spannung, Abschnitte zusammenfassen", () => {
+  assert.equal(voltageText("380000;110000"), "380 kV / 110 kV");
+  assert.equal(voltageText("20000"), "20 kV");
+  assert.equal(voltageText(""), null);
+  assert.equal(maxKv("110000;380000"), 380);
+  const sub = classifyInfra({ power: "substation", voltage: "110000", operator: "Westnetz" });
+  assert.equal(sub.cat, "power"); assert.equal(sub.kind, "Umspannwerk");
+  assert.deepEqual(sub.facts, ["110 kV", "Betreiber: Westnetz"]);
+  assert.equal(classifyInfra({ power: "plant", "plant:source": "coal" }).kind, "Kraftwerk (Kohle)");
+  assert.equal(classifyInfra({ bridge: "viaduct", railway: "rail" }).kind, "Viadukt");
+  assert.equal(classifyInfra({ waterway: "lock_gate" }).kind, "Schleuse");
+  assert.equal(classifyInfra({ man_made: "tower", "tower:type": "communication", height: "180", start_date: "1975-05" }).facts.join("|"), "Höhe 180 m|seit 1975");
+  assert.equal(classifyInfra({ railway: "signal_box" }).kind, "Stellwerk");
+  assert.equal(classifyInfra({ "disused:railway": "station" }).cat, "lost");
+  assert.equal(classifyInfra({ railway: "abandoned" }).cat, "rail");
+  assert.equal(classifyInfra({ amenity: "bench" }), null);
+  assert.equal(infraTitle({ "bridge:name": "Pfaffendorfer Brücke" }, "Brücke"), "Pfaffendorfer Brücke");
+  const seg = (id, lat) => ({ id, lat, lon: 7.6, cat: "bridge", title: "Moselbrücke", tags: {} });
+  const merged = mergeSegments([seg("a", 50.35), seg("b", 50.3505), seg("c", 50.40)], distanceKm);
+  assert.equal(merged.length, 2);
+  assert.equal(merged[0].parts, 2);
 });

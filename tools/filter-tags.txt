@@ -1,8 +1,13 @@
 # Vorfilter für osmium tags-filter: nur Objekte, die die App braucht.
 # Eine Zeile = ein Ausdruck (siehe `man osmium-tags-filter`). n = Knoten, w = Wege.
-nw/amenity=drinking_water,water_point,toilets,shower,device_charging_station,food_sharing,give_box,shelter,social_facility,library,fast_food,canteen,locker,lockers,luggage_locker,pharmacy,atm
+nw/amenity=drinking_water,water_point,toilets,shower,device_charging_station,food_sharing,give_box,shelter,social_facility,library,fast_food,canteen,locker,lockers,luggage_locker,pharmacy,atm,place_of_worship,public_bookcase
 nw/social_facility
-nw/shop=supermarket,bakery,convenience,kiosk
+nw/shop=supermarket,bakery,convenience,kiosk,mall
 nw/tourism=hotel,hostel,guest_house,motel,apartment,camp_site,alpine_hut,chalet,wilderness_hut
 nw/internet_access:fee=no
 nw/power_supply=yes
+# Homeless-Modus: Parks & kostenlose Orte (genauer gefiltert in tools/build_poi.py)
+nw/leisure=park,garden,nature_reserve,fitness_station,swimming_area
+nw/tourism=viewpoint,attraction,museum
+nw/historic=castle,ruins,city_gate,monument,palace,fort
+nw/natural=beach

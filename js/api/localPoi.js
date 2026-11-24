@@ -53,11 +53,13 @@ export async function localElements(center, { radiusM = 1500, bounds = null } = 
   const [s, w, n, e] = bb;
   const out = [];
   for (const list of lists) {
-    for (const [id, lat, lon, tags] of list) {
+    for (const [id, lat, lon, tags, bb] of list) {
       if (lat < s || lat > n || lon < w || lon > e) continue;
       const dist = distanceKm(center, { lat, lon });
       if (!bounds && dist * 1000 > radiusM) continue;
-      out.push({ id, lat, lon, tags, dist });
+      // Flächen (Parks) haben optional ihr Rechteck dabei – im Overpass-Format „bounds“
+      const box = bb ? { minlat: bb[0], minlon: bb[1], maxlat: bb[2], maxlon: bb[3] } : undefined;
+      out.push({ id, lat, lon, tags, dist, bounds: box });
     }
   }
   return out.sort((a, b) => a.dist - b.dist);

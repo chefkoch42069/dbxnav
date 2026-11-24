@@ -8,7 +8,9 @@ Ergebnis:
     index.json            Datenstand, Kachel-Zoom, Liste vorhandener Kacheln
     12/<x>/<y>.json       Orte je Kachel (Zoom 12 ≈ 6 × 6 km)
 
-Jeder Ort: [osm-id, lat, lon, {tags}]. Wege werden auf ihren Mittelpunkt reduziert.
+Jeder Ort: [osm-id, lat, lon, {tags}], Parks & Gratis-Orte als Weg zusätzlich [süd, west, nord, ost].
+Wege werden auf ihren Mittelpunkt reduziert. Relationen (z. B. große Parks als Multipolygon) fehlen,
+die holt die App bei Bedarf live über Overpass.
 Welche Orte und Tags hineinkommen, steht unten in KEEP_* – passend zu js/planner/*.
 """
 import datetime
@@ -29,6 +31,12 @@ AMENITY = {
 SHOP = {"supermarket", "bakery", "convenience", "kiosk"}
 TOURISM = {"hotel", "hostel", "guest_house", "motel", "apartment", "camp_site", "alpine_hut", "chalet", "wilderness_hut"}
 
+# Homeless-Modus: Parks & kostenlose Orte (wie freePlacesQuery in js/api/overpass.js)
+FREE_LEISURE_NAMED = {"park", "garden", "nature_reserve"}
+FREE_LEISURE = {"fitness_station", "swimming_area"}
+FREE_TOURISM = {"viewpoint", "attraction", "museum"}
+FREE_HISTORIC_NAMED = {"castle", "ruins", "city_gate", "monument", "palace", "fort"}
+
 # Nur diese Tags werden gespeichert (hält die Dateien klein).
 KEEP_TAGS = {
     "name", "brand", "operator", "amenity", "shop", "tourism", "access", "fee", "charge",
@@ -36,10 +44,25 @@ KEEP_TAGS = {
     "social_facility", "social_facility:for", "drinking_water", "seasonal", "shelter_type",
     "stars", "price", "price:room", "price:bed", "website", "contact:website", "phone", "contact:phone",
     "addr:street", "addr:housenumber", "addr:city", "library", "vending", "wheelchair",
+    "leisure", "historic", "natural", "garden:type", "building",
 }
 
 
+def wanted_free(tags):
+    named = "name" in tags
+    leisure, amenity = tags.get("leisure"), tags.get("amenity")
+    if leisure in FREE_LEISURE or amenity == "public_bookcase" or tags.get("shop") == "mall":
+        return True
+    if tags.get("tourism") in FREE_TOURISM:
+        return True
+    if named and (leisure in FREE_LEISURE_NAMED or tags.get("historic") in FREE_HISTORIC_NAMED or tags.get("natural") == "beach"):
+        return True
+    return amenity == "place_of_worship" and tags.get("building") in ("cathedral", "church") and "wikipedia" in tags
+
+
 def wanted(tags):
+    if wanted_free(tags):
+        return True
     if tags.get("amenity") in AMENITY or tags.get("shop") in SHOP or tags.get("tourism") in TOURISM:
         return True
     if "social_facility" in tags or tags.get("power_supply") == "yes":
@@ -61,9 +84,12 @@ class Collector(osmium.SimpleHandler):
         self.tiles = {}
         self.count = 0
 
-    def add(self, oid, lat, lon, tags):
+    def add(self, oid, lat, lon, tags, bounds=None):
         slim = {k: v for k, v in tags.items() if k in KEEP_TAGS}
-        self.tiles.setdefault(tile_of(lat, lon), []).append([oid, round(lat, 5), round(lon, 5), slim])
+        item = [oid, round(lat, 5), round(lon, 5), slim]
+        if bounds and wanted_free(tags):
+            item.append([round(v, 5) for v in bounds])  # [süd, west, nord, ost] → Parkgröße in der App
+        self.tiles.setdefault(tile_of(lat, lon), []).append(item)
         self.count += 1
 
     def node(self, n):
@@ -82,7 +108,8 @@ class Collector(osmium.SimpleHandler):
             return
         # Mittelpunkt des umgebenden Rechtecks – wie Overpass „out center“
         lats, lons = [p[0] for p in pts], [p[1] for p in pts]
-        self.add(f"way/{w.id}", (min(lats) + max(lats)) / 2, (min(lons) + max(lons)) / 2, tags)
+        self.add(f"way/{w.id}", (min(lats) + max(lats)) / 2, (min(lons) + max(lons)) / 2, tags,
+                 (min(lats), min(lons), max(lats), max(lons)))
 
 
 def main(src, out):
