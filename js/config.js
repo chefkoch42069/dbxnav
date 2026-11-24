@@ -17,11 +17,16 @@ export const TRANSITOUS = {
   maxTransfers: 8,
 };
 
-// Overpass-Server (OpenStreetMap-Abfragen). Der erste, der antwortet, gewinnt.
+// Overpass-Server (OpenStreetMap-Abfragen). Kein API-Schlüssel nötig.
+// Ist einer überlastet (502/504/429) oder zu langsam, wird der nächste gefragt;
+// der zuletzt erfolgreiche Server kommt beim nächsten Mal zuerst dran.
 export const OVERPASS_ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ];
+export const OVERPASS_TIMEOUT_S = 25; // Server-Timeout pro Abfrage
 
 // Wetter: Bright Sky liefert die Daten des Deutschen Wetterdienstes (DWD Open Data).
 export const WEATHER = { brightSky: "https://api.brightsky.dev" };

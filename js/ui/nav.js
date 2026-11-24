@@ -3,4 +3,5 @@ export const nav = {
   switchTab: () => {},
   plan: { setStart: () => {}, addStop: () => {}, openTour: () => {}, suggestRoundtrip: () => {} },
   board: { open: () => {} },
+  budget: { open: () => {} },
 };

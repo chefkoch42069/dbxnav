@@ -150,3 +150,11 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .map-pin span { transform: rotate(45deg); font-size: 12px; font-weight: 700; }
 .legend { background: var(--panel); color: var(--ink); padding: 6px 8px; border-radius: 6px; box-shadow: var(--shadow); font-size: 12px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+
+@media (max-width: 520px) {
+  .topbar { gap: 8px; padding: 6px 10px; flex-wrap: nowrap; }
+  .brand span:not(.logo) { display: none; }
+  .logo { width: 24px; height: 24px; }
+  .tabs { gap: 0; }
+  .tabs button { padding: 6px 7px; font-size: 13.5px; }
+}

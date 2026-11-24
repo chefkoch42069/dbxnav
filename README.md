@@ -45,6 +45,15 @@ U-Bahn, Tram, Bus und Fähre, auch von Haltestellen direkt am Bahnhof. Filter je
 Gleis, Fernverkehr optional ausgegraut. Antippen zeigt den Fahrtverlauf auf der Karte, und von jedem Halt kann man
 weiter zu dessen Abfahrten springen. Ein langer Druck bzw. Rechtsklick auf die Karte wählt die nächste Haltestelle.
 
+**Unterwegs**: kostenlos & billig rund um einen Bahnhof, den echten Standort oder die Kartenmitte – Bahnhofsmission und
+Angebote für Wohnungslose, Tafeln/Suppenküchen/Foodsharing-Fairteiler, Discounter/Bäcker/Imbiss, Handy-Ladestationen,
+Gratis-WLAN, Bibliotheken, Trinkwasser, Toiletten, Duschen, Schutzhütten, Verschenkregale. Filter je Kategorie,
+„nur kostenlose“, Öffnungszeiten auf Deutsch, Fußweg-Link. Auch als Abschnitt bei jedem Übernachtungsort und Tagesziel.
+
+Bewusst streng, lieber weniger als Falsches: Orte mit `access=private/customers/…` werden nicht gezeigt, „kostenlos“ heißt
+in OSM als kostenlos eingetragen, „Hilfe“ nur bei `social_facility:for=homeless/underprivileged` (nicht Tagespflege oder
+Pflegeheime), Wasserstellen nur mit Trinkwasser, saisonale Brunnen mit Hinweis.
+
 **Sammler**: gefahrene Strecken als farbige Linien und Bundesländer zum Abhaken (automatisch aus den Strecken,
 manuell korrigierbar). **Rundreise-Vorschlag**: „N Tage, zeig mir eine Runde durch Länder, in denen ich noch nicht war“.
 
@@ -75,7 +84,12 @@ Offline-Grenzen, **IC-Ausnahmestrecken** und die Knotenbahnhöfe je Bundesland f
 - **IC-Ausnahmen** (IC 87 Gäubahn, IC 56 Bremen–Norddeich) sind als *ungeprüft* markiert und müssen vor jeder Saison
   bestätigt werden. Die Regeln ändern sich meist zum Fahrplanwechsel im Dezember. IC 87 führt Transitous ohnehin als Regionalverkehr.
 - Die Parameter des **direkt.bahn.guru**-Links (`?origin=<EVA>&local=true`) sind nicht verifiziert.
-- Overpass, also Unterkünfte, Bahnhofs-Infos und Ausflugsziele, konnte in der Entwicklungsumgebung nicht live getestet werden.
+- Overpass (Unterkünfte, Bahnhofs-Infos, Ausflugsziele, Wanderwege-Liste, Bibliotheken, Unterwegs) war aus der
+  Entwicklungsumgebung nicht erreichbar. Getestet wurde mit nachgestellten Antworten, live nur stichprobenartig.
+  Overpass braucht keinen API-Schlüssel. Bei Überlast (502/504/429) wechselt die App automatisch zwischen vier
+  Servern (`OVERPASS_ENDPOINTS` in `js/config.js`).
+- Viele OSM-Einträge haben keine Angaben zu Gebühr, Zugang oder Zielgruppe. Der Unterwegs-Modus zeigt solche Orte
+  entsprechend vorsichtig an.
 - Die Preise in OSM sind lückenhaft. Die 50-€-Grenze ist eine Schätzung und keine Garantie.
 
 ## Projektaufbau
@@ -84,7 +98,7 @@ Offline-Grenzen, **IC-Ausnahmestrecken** und die Knotenbahnhöfe je Bundesland f
 index.html, css/, sw.js, manifest.webmanifest
 js/config.js          zentrale Einstellungen
 js/api/               Transitous, Overpass, Wetter
-js/planner/           reine Logik (getestet): D-Ticket-Prüfung, Etappen, Touren, Tagestrip, Rundreise, Unterkünfte, Abfahrten
+js/planner/           reine Logik (getestet): D-Ticket-Prüfung, Etappen, Touren, Tagestrip, Rundreise, Unterkünfte, Abfahrten, Unterwegs
 js/ui/                Reiter, Karte, Eingabefelder
 data/                 Bundesländer (Natural Earth, gemeinfrei, vereinfacht)
 vendor/leaflet/       Leaflet 1.9.4 (für offline)
