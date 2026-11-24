@@ -9,7 +9,7 @@ import { stationShops, stationInfo } from "../api/overpass.js";
 import { prepareDepartures } from "../planner/departures.js";
 import { SHOP_CATS, placeShops, pickMainStation } from "../planner/city.js";
 import { ohDe } from "../planner/budget.js";
-import { hikingPanel, libraryPanel, sightsPanel, lazyDetails } from "./details.js";
+import { hikingPanel, libraryPanel, sightsPanel, lodgingPanel, bookingPanel, lazyDetails } from "./details.js";
 import { linesBlock } from "./transitClick.js";
 import { distanceKm } from "../lib/geo.js";
 
@@ -71,6 +71,8 @@ async function load(p, forced = null) {
           others.map((o) => el("button", { class: "chip", onclick: () => load(p, o) }, o.name))) : null),
       el("h3", {}, "Linien & Takt"), linesBox,
       el("h3", {}, "Läden & Einrichtungen"), shopsBox,
+      lazyDetails("🛏 Übernachten: Hostels, Motels, Airbnb, Ferienwohnungen", () => bookingPanel(p)),
+      lazyDetails("Unterkünfte aus OpenStreetMap (mit Preiseinschätzung)", () => lodgingPanel(station)),
       lazyDetails("Sehenswertes in der Nähe", () => sightsPanel(station)),
       lazyDetails("Wanderwege in der Umgebung", () => hikingPanel(station)),
       lazyDetails("Bibliotheken (WLAN, Regentag)", () => libraryPanel(station)));

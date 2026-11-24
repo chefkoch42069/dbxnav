@@ -1,5 +1,5 @@
 // Service Worker: App offline verfügbar, Kacheln zwischenspeichern (begrenzt), API-Antworten als Rückfall.
-const VERSION = "v10";
+const VERSION = "v11";
 const SHELL = `shell-${VERSION}`;
 const TILES = "tiles";
 const API = "api";
@@ -16,7 +16,7 @@ const SHELL_FILES = [
   "js/app.js", "js/config.js", "js/state.js", "js/collector.js", "js/offline.js",
   "js/lib/time.js", "js/lib/polyline.js", "js/lib/geo.js", "js/lib/store.js",
   "js/api/http.js", "js/api/transitous.js", "js/api/overpass.js", "js/api/localPoi.js", "js/api/weather.js", "js/api/city.js",
-  "js/planner/dticket.js", "js/planner/stages.js", "js/planner/tour.js", "js/planner/daytrip.js", "js/planner/reachTree.js", "js/planner/roundtrip.js", "js/planner/accommodation.js", "js/planner/departures.js", "js/planner/budget.js", "js/planner/homeless.js", "js/planner/hiking.js", "js/planner/city.js", "js/planner/infra.js",
+  "js/planner/dticket.js", "js/planner/stages.js", "js/planner/tour.js", "js/planner/daytrip.js", "js/planner/reachTree.js", "js/planner/roundtrip.js", "js/planner/accommodation.js", "js/planner/departures.js", "js/planner/budget.js", "js/planner/homeless.js", "js/planner/hiking.js", "js/planner/city.js", "js/planner/infra.js", "js/planner/booking.js",
   "js/ui/dom.js", "js/ui/map.js", "js/ui/nav.js", "js/ui/placeInput.js", "js/ui/details.js", "js/ui/statesData.js",
   "js/ui/planTab.js", "js/ui/budgetTab.js", "js/ui/boardTab.js", "js/ui/collectTab.js", "js/ui/savedTab.js", "js/ui/cityTab.js", "js/ui/youtuberTab.js", "js/ui/transitClick.js",
 ];

@@ -1,7 +1,7 @@
 // Reiter „Planen“: Einstieg über die Reiseart, danach passt sich die Planung an.
 import { el, clear, busy, toast, spinnerLine, errorLine, extLink, direktLink, bahnLink } from "./dom.js";
 import { placeInput } from "./placeInput.js";
-import { renderItinerary, weatherChip, lodgingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails, stayText } from "./details.js";
+import { renderItinerary, weatherChip, lodgingPanel, bookingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails, stayText } from "./details.js";
 import { map, groups, drawItinerary, fitPoints, pinIcon, popupContent, focusOn, DAY_COLORS } from "./map.js";
 import { nav } from "./nav.js";
 import { state, setPref, saveTour, addFavorite, addJournal } from "../state.js";
@@ -408,6 +408,7 @@ function showTour(tour) {
         el("strong", {}, `🛏 Übernachtung in ${o.name}`, d.nights > 1 ? ` (${d.nights} Nächte)` : ""),
         el("div", { class: "chips" }, weatherChip(o, d.date)),
         lazyDetails(`Unterkünfte bis 50 € um ${o.name}`, () => lodgingPanel(o)),
+        lazyDetails("Online suchen: Hostels, Motels, Airbnb, Ferienwohnungen", () => bookingPanel(o, { checkin: d.date, nights: Math.max(1, d.nights || 1) })),
         lazyDetails("Infos am Bahnhof", () => stationPanel(o)),
         lazyDetails("Wanderwege in der Umgebung", () => hikingPanel(o)),
         lazyDetails("Bibliotheken (WLAN, Regentag)", () => libraryPanel(o)),
