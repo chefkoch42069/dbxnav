@@ -10,6 +10,14 @@ const bases = {};
 export let currentBase = null;
 let overlays = {};
 
+/** Grundkarte wechseln (z. B. „ÖPNVKarte“), ohne die gespeicherte Wahl zu überschreiben. */
+export function setBase(name) {
+  if (!bases[name] || currentBase === name) return;
+  if (bases[currentBase]) map.removeLayer(bases[currentBase]);
+  bases[name].addTo(map).bringToBack(); // Grundkarte immer unter zugeschalteten Ebenen
+  currentBase = name;
+}
+
 /** Kartenebene per Name einschalten (z. B. „Wanderwege“). */
 export function showOverlay(name) {
   if (overlays[name] && !map.hasLayer(overlays[name])) overlays[name].addTo(map);
@@ -29,14 +37,15 @@ export function initMap() {
   for (const [name, cfg] of Object.entries(OVERLAY_LAYERS)) overlays[name] = L.tileLayer(cfg.url, cfg.options);
   overlays["Regenradar (DWD)"] = L.tileLayer.wms(RAIN_RADAR.url, RAIN_RADAR.options);
 
-  for (const g of ["route", "places", "lodging", "daytrip", "collector", "trip"]) groups[g] = L.layerGroup();
-  for (const g of ["route", "places", "lodging", "daytrip", "trip"]) groups[g].addTo(map);
+  for (const g of ["route", "places", "lodging", "daytrip", "collector", "trip", "infra"]) groups[g] = L.layerGroup();
+  for (const g of ["route", "places", "lodging", "daytrip", "trip", "infra"]) groups[g].addTo(map);
   overlays["Route"] = groups.route;
   overlays["Bahnhofs-Infos & Ausflugsziele"] = groups.places;
   overlays["Unterkünfte"] = groups.lodging;
   overlays["Tagestrip-Ziele"] = groups.daytrip;
   overlays["Gefahrene Strecken"] = groups.collector;
   overlays["Fahrt (Abfahrtstafel)"] = groups.trip;
+  overlays["Infrastruktur (YouTuber)"] = groups.infra;
 
   L.control.layers(bases, overlays, { collapsed: true }).addTo(map);
   L.control.scale({ imperial: false }).addTo(map);

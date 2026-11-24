@@ -79,6 +79,18 @@ OVERLAY_LAYERS.Wanderwege = {
   },
 };
 
+// YouTuber-Modus: Karten öffentlicher Infrastruktur (Rasterkacheln, zuschaltbar im Reiter).
+// OpenInfraMap gibt es nur als Vektorkacheln – dafür sucht der Reiter Strom & Co. selbst in OSM.
+const ORM_ATTR = 'Bahn: <a href="https://www.openrailwaymap.org/">OpenRailwayMap</a> (CC BY-SA 2.0), Daten &copy; OpenStreetMap-Mitwirkende';
+export const INFRA_LAYERS = {
+  "Bahn: Strecken & Bahnhöfe": { url: "https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png", options: { subdomains: "abc", maxZoom: 19, opacity: 0.85, attribution: ORM_ATTR } },
+  "Bahn: Höchstgeschwindigkeit": { url: "https://{s}.tiles.openrailwaymap.org/maxspeed/{z}/{x}/{y}.png", options: { subdomains: "abc", maxZoom: 19, opacity: 0.85, attribution: ORM_ATTR } },
+  "Bahn: Signale": { url: "https://{s}.tiles.openrailwaymap.org/signals/{z}/{x}/{y}.png", options: { subdomains: "abc", maxZoom: 19, opacity: 0.9, attribution: ORM_ATTR } },
+  "Bahn: Elektrifizierung": { url: "https://{s}.tiles.openrailwaymap.org/electrification/{z}/{x}/{y}.png", options: { subdomains: "abc", maxZoom: 19, opacity: 0.85, attribution: ORM_ATTR } },
+  "Wasserstraßen & Schleusen": { url: "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", options: { maxZoom: 18, attribution: 'Seezeichen: <a href="https://www.openseamap.org/">OpenSeaMap</a> (CC BY-SA 2.0)' } },
+  "Radwege": { url: "https://tile.waymarkedtrails.org/cycling/{z}/{x}/{y}.png", options: { maxZoom: 18, opacity: 0.8, attribution: 'Radwege: <a href="https://cycling.waymarkedtrails.org/">Waymarked Trails</a> (CC BY-SA 3.0)' } },
+};
+
 export const RAIN_RADAR = {
   // Niederschlagsradar des DWD als WMS (Open Data, Quellenvermerk „Deutscher Wetterdienst“).
   url: "https://maps.dwd.de/geoserver/dwd/wms",

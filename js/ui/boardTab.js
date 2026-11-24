@@ -74,7 +74,7 @@ async function open(p) {
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Infos am Bahnhof ${p.name}`), stationPanel(p))); } }, "Bahnhofs-Infos"),
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Wanderwege um ${p.name}`), hikingPanel(p))); } }, "🥾 Wanderwege"),
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Bibliotheken um ${p.name}`), libraryPanel(p))); } }, "📚 Bibliotheken"),
-    el("button", { class: "btn small", onclick: () => nav.budget.open(p) }, "🥖🔌📶 Unterwegs"),
+    el("button", { class: "btn small", onclick: () => nav.budget.open(p) }, "🥖🔌🌳 Homeless-Modus"),
     dl ? el("a", { class: "btn small", href: dl, target: "_blank", rel: "noopener" }, "Wohin direkt?") : null));
   await reload();
 }

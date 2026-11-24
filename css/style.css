@@ -158,3 +158,10 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
   .tabs { gap: 0; }
   .tabs button { padding: 6px 7px; font-size: 13.5px; }
 }
+details.branch { border-bottom: 1px solid var(--line, #ddd); }
+details.branch > summary { font-weight: 600; padding: 4px 0; }
+details.branch > .list { margin: 0 0 8px 18px; }
+.swatch { display: inline-block; width: 18px; height: 4px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.lines { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+.lines-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.infra-toggles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 2px 10px; }
