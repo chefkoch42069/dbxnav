@@ -189,3 +189,9 @@ details.branch > .list { margin: 0 0 8px 18px; }
 .conn-day { list-style: none; font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 0; text-transform: uppercase; letter-spacing: .4px; }
 .conn-details { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 4px; }
 .conn-head { margin: 14px 0 4px; }
+.stay { margin: 6px 0 6px 14px; padding: 8px 12px; border-left: 3px dotted var(--line); background: var(--panel); }
+.timeline { list-style: none; padding: 0; margin: 8px 0; }
+.timeline li { display: grid; grid-template-columns: 92px 24px 1fr; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--line); align-items: baseline; }
+.timeline li:last-child { border-bottom: 0; }
+.timeline li.hl { font-weight: 600; }
+.tl-time { font-variant-numeric: tabular-nums; }

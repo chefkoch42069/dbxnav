@@ -22,7 +22,8 @@ export function summarize(it, check = checkItinerary) {
     id: connectionKey(it),
     dep: ride[0]?.startTime || it.startTime,
     arr: ride[ride.length - 1]?.endTime || it.endTime,
-    duration: it.duration,
+    // Dauer passend zu den angezeigten Zeiten (erstes bis letztes Fahrzeug); Fußwege separat in walkMin
+    duration: ride.length ? (Date.parse(ride[ride.length - 1].endTime) - Date.parse(ride[0].startTime)) / 1000 : it.duration,
     transfers: Math.max(0, ride.length - 1),
     walkMin: Math.round(walkSec / 60),
     lines: ride.map((l) => ({ mode: l.mode, group: groupOf(l.mode), name: lineName(l).replace(/\s*\(\d+\)$/, "") })),

@@ -278,6 +278,14 @@ async function freePlacesLive(center, bbox) {
     .sort((a, b) => a.dist - b.dist);
 }
 
+// ---- Einkaufen: Einkaufszentren und Kaufhäuser mit Öffnungszeiten ----
+export async function shoppingCenters(center, radiusM = 3000) {
+  const ql = `[out:json][timeout:25];
+nwr["shop"~"^(mall|department_store)$"]["name"](around:${radiusM},${center.lat},${center.lon});
+out center tags 40;`;
+  return elements(await query(ql), center);
+}
+
 export function sightCategory(tags) {
   if (tags.historic === "castle" || tags.historic === "palace" || tags.historic === "fort") return "Burg/Schloss";
   if (tags.historic === "ruins") return "Ruine";
