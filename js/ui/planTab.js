@@ -95,6 +95,7 @@ const colorForMinutes = (m) => (m <= 60 ? "#1e7b45" : m <= 105 ? "#7cb342" : m <
 async function runDayTrip(home, o) {
   clear(resultBox).append(spinnerLine("Frage Erreichbarkeit bei Transitous ab (hin und zurück) …"));
   groups.daytrip.clearLayers();
+  groups.trip.clearLayers();
   groups.route.clearLayers();
   const [outb, inb] = await Promise.all([
     oneToAll(home, berlinToISO(o.date, o.dep), { maxMinutes: o.maxMin }),
@@ -310,6 +311,8 @@ function showTour(tour) {
   clear(resultBox);
   groups.route.clearLayers();
   groups.daytrip.clearLayers();
+  groups.trip.clearLayers();
+  groups.places.clearLayers();
   const { params, days } = tour;
   const pts = [];
   const totalTravel = days.reduce((s, d) => s + (d.itinerary?.duration || 0), 0);

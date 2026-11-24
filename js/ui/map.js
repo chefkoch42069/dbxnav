@@ -88,7 +88,12 @@ export function focusOn(lat, lon, zoom = map.getZoom()) {
   map.setView(map.unproject(pt, zoom), zoom);
 }
 
-export const trackLabel = (t) => (t ? `Gl. ${String(t).replace(/^Gl\.?\s*/i, "")}` : "");
+// „3“ → „Gl. 3“, aber „Pos. 11“ (Tram-/Bussteig) bleibt, wie es ist.
+export const trackLabel = (t) => {
+  if (!t) return "";
+  const s = String(t).replace(/^Gl\.?\s*/i, "");
+  return /^\d/.test(s) ? `Gl. ${s}` : s;
+};
 
 export function popupContent(nodes) {
   const div = document.createElement("div");
