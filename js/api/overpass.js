@@ -3,6 +3,13 @@
 import { OVERPASS_ENDPOINTS, OVERPASS_TIMEOUT_S } from "../config.js";
 import { getJSON } from "./http.js";
 import { distanceKm } from "../lib/geo.js";
+import { localElements } from "./localPoi.js";
+
+// Zuerst eigene Daten (schnell, kein Server nötig), sonst Overpass.
+async function fromLocal(center, opts, keep) {
+  const local = await localElements(center, opts);
+  return local ? local.filter((e) => keep(e.tags)) : null;
+}
 
 let preferred = 0; // Index des zuletzt erfolgreichen Servers
 const memo = new Map(); // gleiche Abfrage in dieser Sitzung nicht doppelt stellen
@@ -48,7 +55,10 @@ function elements(res, center) {
     .sort((a, b) => a.dist - b.dist);
 }
 
+const LODGING = /^(hotel|hostel|guest_house|motel|apartment|camp_site|alpine_hut|chalet)$/;
 export async function accommodations(center, radiusM = 3000) {
+  const local = await fromLocal(center, { radiusM }, (t) => LODGING.test(t.tourism || "") && t.name);
+  if (local) return local;
   const ql = `[out:json][timeout:30];
 nwr["tourism"~"^(hotel|hostel|guest_house|motel|apartment|camp_site|alpine_hut|chalet)$"](around:${radiusM},${center.lat},${center.lon});
 out center tags 120;`;
@@ -56,6 +66,11 @@ out center tags 120;`;
 }
 
 export async function stationInfo(center, radiusM = 600) {
+  const local = await fromLocal(center, { radiusM }, (t) =>
+    /^(toilets|locker|luggage_locker|lockers|pharmacy|drinking_water|atm)$/.test(t.amenity || "") ||
+    /^(supermarket|convenience|bakery|kiosk)$/.test(t.shop || "") ||
+    (t.amenity === "vending_machine" && /luggage|locker/.test(t.vending || "")));
+  if (local) return local;
   const a = `(around:${radiusM},${center.lat},${center.lon})`;
   const ql = `[out:json][timeout:25];
 (
@@ -132,6 +147,8 @@ export function libraryInfo(tags) {
 }
 
 export async function libraries(center, radiusM = 3000) {
+  const local = await fromLocal(center, { radiusM }, (t) => t.amenity === "library");
+  if (local) return local.map((e) => ({ ...e, info: libraryInfo(e.tags) }));
   const ql = `[out:json][timeout:25];
 nwr["amenity"="library"](around:${radiusM},${center.lat},${center.lon});
 out center tags 60;`;
@@ -170,6 +187,9 @@ out center tags;`;
  * fertiges Rechteck (bounds = sichtbarer Kartenausschnitt).
  */
 export async function budgetPlaces(center, radiusM = 1500, bounds = null) {
+  // Lokale Daten: alles laden, die Einordnung (classify) filtert ohnehin.
+  const local = await fromLocal(center, { radiusM, bounds: bounds ? bounds.split(",").map(Number) : null }, () => true);
+  if (local) return local;
   const res = await query(budgetQuery(bounds || bboxAround(center, radiusM)));
   const all = elements(res, center);
   return bounds ? all : all.filter((e) => e.dist * 1000 <= radiusM); // Ecken des Rechtecks abschneiden

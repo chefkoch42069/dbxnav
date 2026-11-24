@@ -76,8 +76,8 @@ export function classify(t) {
     cat = "water"; free = true;
     if (t.seasonal && t.seasonal !== "no") note = "nur saisonal – im Winter oft abgestellt";
   }
-  else if (t.amenity === "toilets") { cat = "toilets"; free = feeNo; note = feeNo ? "kostenlos" : feeNote; }
-  else if (t.amenity === "shower") { cat = "shower"; free = feeNo; note = feeNo ? "kostenlos" : feeNote; }
+  else if (t.amenity === "toilets") { cat = "toilets"; free = feeNo; note = feeNo ? null : feeNote; }
+  else if (t.amenity === "shower") { cat = "shower"; free = feeNo; note = feeNo ? null : feeNote; }
   else if (t.amenity === "device_charging_station") { cat = "power"; free = feeNo; note = feeNo ? "Handy-Ladestation" : `Handy-Ladestation · ${feeNote}`; }
   else if (t.amenity === "give_box") { cat = "give"; free = true; note = "Verschenkregal/-schrank"; }
   else if (t.amenity === "shelter") {

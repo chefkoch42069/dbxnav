@@ -44,3 +44,12 @@ test("Distanz, Vereinfachen, Kacheln", () => {
   assert.ok(tiles.length > 5 && tiles.length < 60);
   assert.equal(tilesAlong([[50.97, 11.03], [51.34, 12.38]], [12], 3).length, 3);
 });
+
+test("Ortsdaten-Kacheln: gleiche Kachel-Nummern wie tools/build_poi.py", async () => {
+  const { tilesForBounds, boundsAround } = await import("../js/api/localPoi.js");
+  // build_poi.py: (50.97244, 11.0375) → 2173/1371, (48.1373, 11.5754) → 2179/1421
+  assert.deepEqual(tilesForBounds([50.97244, 11.0375, 50.97244, 11.0375], 12), ["2173/1371"]);
+  assert.deepEqual(tilesForBounds([48.1373, 11.5754, 48.1373, 11.5754], 12), ["2179/1421"]);
+  const keys = tilesForBounds(boundsAround({ lat: 50.97, lon: 11.03 }, 1500), 12);
+  assert.ok(keys.length >= 1 && keys.length <= 4);
+});

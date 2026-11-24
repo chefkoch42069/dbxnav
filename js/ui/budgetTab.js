@@ -6,6 +6,7 @@ import { map, groups, fitPoints, focusOn, pinIcon } from "./map.js";
 import { nav } from "./nav.js";
 import { state, addFavorite } from "../state.js";
 import { budgetPlaces } from "../api/overpass.js";
+import { dataInfo } from "../api/localPoi.js";
 import { BUDGET_CATS, classify, extraLabel, ohDe } from "../planner/budget.js";
 
 const ORDER = Object.keys(BUDGET_CATS);
@@ -187,6 +188,9 @@ function render(fit = false) {
     frag.push(el("h3", {}, `${BUDGET_CATS[k].icon} ${BUDGET_CATS[k].label} (${arr.length})`), ul);
   }
   if (!list.length) frag.push(el("p", { class: "muted" }, items.length ? "Mit diesen Filtern nichts gefunden." : "Hier ist in OSM nichts eingetragen. Größeren Umkreis probieren."));
+  const src = el("p", { class: "muted small" }, "Daten © OpenStreetMap-Mitwirkende");
+  dataInfo().then((d) => { src.textContent = d ? `Daten © OpenStreetMap-Mitwirkende · Stand ${d.generated.slice(0, 10).split("-").reverse().join(".")}` : "Daten © OpenStreetMap-Mitwirkende · live über Overpass"; });
+  frag.push(src);
   clear(resultBox).append(...frag);
   if (fit && list.length) fitPoints([[center.lat, center.lon], ...list.map((i) => [i.lat, i.lon])], 16);
 }
