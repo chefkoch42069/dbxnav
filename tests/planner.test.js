@@ -12,6 +12,7 @@ import { parseMeters, walkHours, fmtHours, symbolText } from "../js/planner/hiki
 import { shopCategory, wayToPolygon, placeShops, pickMainStation, linesFromDepartures } from "../js/planner/city.js";
 import { classifyInfra, voltageText, maxKv, mergeSegments, infraTitle } from "../js/planner/infra.js";
 import { distanceKm } from "../js/lib/geo.js";
+import { cityName, hostelworldSlug, bookingLinks } from "../js/planner/booking.js";
 import { suggestRoundtrip } from "../js/planner/roundtrip.js";
 import { estimatePrice } from "../js/planner/accommodation.js";
 import { prepareDepartures, groupOf } from "../js/planner/departures.js";
@@ -399,4 +400,31 @@ test("Infrastruktur: Einordnung, Spannung, Abschnitte zusammenfassen", () => {
   const merged = mergeSegments([seg("a", 50.35), seg("b", 50.3505), seg("c", 50.40)], distanceKm);
   assert.equal(merged.length, 2);
   assert.equal(merged[0].parts, 2);
+});
+
+test("Buchen: Ortsname, Hostelworld-Name, Suchlinks", () => {
+  assert.equal(cityName("Koblenz Hbf"), "Koblenz");
+  assert.equal(cityName("Frankfurt (Main) Hbf"), "Frankfurt");
+  assert.equal(cityName("Köln Messe/Deutz"), "Köln");
+  assert.equal(cityName("Berlin Ostkreuz"), "Berlin Ostkreuz", "unbekannte Zusätze bleiben");
+  assert.equal(cityName("Bad Ems"), "Bad Ems");
+  assert.equal(hostelworldSlug("München"), "munich");
+  assert.equal(hostelworldSlug("Würzburg"), "wurzburg");
+  assert.equal(hostelworldSlug("Göttingen"), "gottingen");
+  assert.equal(hostelworldSlug("Bad Ems"), "bad-ems");
+
+  const r = bookingLinks({ name: "Koblenz Hbf" }, { checkin: "2026-12-05", checkout: "2026-12-07", adults: 2, maxPrice: 40 });
+  assert.equal(r.city, "Koblenz");
+  const booking = r.budget[0].url;
+  assert.match(booking, /^https:\/\/www\.booking\.com\/searchresults\.de\.html\?ss=Koblenz&checkin=2026-12-05&checkout=2026-12-07&group_adults=2/);
+  assert.match(booking, /order=price/);
+  assert.match(decodeURIComponent(booking), /nflt=ht_id=203;ht_id=205;ht_id=216;price=EUR-min-40-1$/);
+  const privat = r.budget.find((l) => l.label === "Privatzimmer").url;
+  assert.equal(privat, "https://www.airbnb.de/s/Koblenz/homes?checkin=2026-12-05&checkout=2026-12-07&adults=2&price_max=40&room_types%5B%5D=Private%20room");
+  assert.equal(r.budget.find((l) => l.site === "Hostelworld").url, "https://www.hostelworld.com/hostels/europe/germany/koblenz/");
+  assert.equal(r.budget.find((l) => l.site === "Kayak").url, "https://www.kayak.de/hotels/Koblenz/2026-12-05/2026-12-07/2adults");
+  assert.match(r.rentals[0].url, /room_types%5B%5D=Entire%20home%2Fapt/);
+  assert.match(r.rentals[2].note, /2 Nächte/);
+  // Umlaute im Ortsnamen werden für die URL kodiert
+  assert.match(bookingLinks({ name: "Würzburg Hbf" }, { checkin: "2026-12-05", checkout: "2026-12-06" }).budget[0].url, /ss=W%C3%BCrzburg/);
 });

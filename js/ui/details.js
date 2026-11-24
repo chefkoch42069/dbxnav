@@ -1,11 +1,12 @@
 // Wiederverwendbare Ansichten: Verbindung, Unterkünfte, Bahnhofs-Infos, Ausflugsziele, Wetter.
 import { el, clear, badgeFor, spinnerLine, errorLine, extLink, osmLink, toast } from "./dom.js";
-import { fmtTime, fmtDuration, diffSec } from "../lib/time.js";
+import { fmtTime, fmtDuration, diffSec, todayBerlin, addDays } from "../lib/time.js";
 import { checkLeg, lineName } from "../planner/dticket.js";
 import { estimatePrice, ratingOrder, TYPE_LABEL } from "../planner/accommodation.js";
 import { accommodations, stationInfo, stationCategory, sights, sightCategory, hikingRoutes, hikingRouteGeometry, waymarkedLink, libraries, MAX_MAP_KM } from "../api/overpass.js";
 import { reverseStop } from "../api/transitous.js";
 import { walkHours, fmtHours } from "../planner/hiking.js";
+import { bookingLinks } from "../planner/booking.js";
 import { nav } from "./nav.js";
 import { forecast } from "../api/weather.js";
 import { map, groups, popupContent, focusOn, fitPoints, pinIcon, trackLabel, showOverlay } from "./map.js";
@@ -73,6 +74,7 @@ export function lodgingPanel(place, { radius = 3000 } = {}) {
               el("strong", {}, t.name),
               el("span", { class: "muted small" }, `${TYPE_LABEL[t.tourism] || t.tourism} · ${a.dist.toFixed(1)} km`, t.stars ? ` · ${t.stars}★` : ""),
               el("span", {}, el("span", { class: `rating ${a.est.rating}` }, a.est.rating === "likely" ? "≤ 50 € wahrscheinlich" : a.est.rating === "maybe" ? "Preis prüfen" : "eher teurer"), " ", el("span", { class: "muted small" }, a.est.reason))),
+            t.website || t["contact:website"] ? el("a", { class: "btn small", href: t.website || t["contact:website"], target: "_blank", rel: "noopener", title: "Direkt beim Haus buchen – oft billiger als über Portale" }, "Web") : null,
             el("button", { class: "btn small", onclick: () => { focusOn(a.lat, a.lon, 16); m.openPopup(); } }, "Karte")));
         }
         clear(box).append(
@@ -217,6 +219,40 @@ function hikeItem(it) {
       showBtn,
       extLink(waymarkedLink(it.id), "Höhenprofil"),
       i.website ? extLink(i.website, "Web") : null));
+}
+
+/**
+ * Online buchen: Suchlinks zu Booking, Airbnb, Hostelworld, DJH und Kayak – Datum, Nächte, Personen und
+ * Preisgrenze einstellbar. Die Preise stehen erst auf den Seiten selbst.
+ */
+export function bookingPanel(place, { checkin = todayBerlin(), nights = 1, adults = 1 } = {}) {
+  const date = el("input", { type: "date", value: checkin });
+  const n = el("select", {}, [1, 2, 3, 4, 5, 6, 7, 10, 14].map((x) => el("option", { value: x, selected: x === nights }, `${x} ${x === 1 ? "Nacht" : "Nächte"}`)));
+  const ppl = el("select", {}, [1, 2, 3, 4].map((x) => el("option", { value: x, selected: x === adults }, `${x} ${x === 1 ? "Person" : "Personen"}`)));
+  const max = el("select", {}, [30, 40, 50, 60, 80, 100].map((x) => el("option", { value: x, selected: x === APP.maxPricePerNight }, `bis ${x} €`)));
+  const out = el("div");
+  const linkList = (title, links) => [el("h4", { style: { margin: "10px 0 4px" } }, title),
+    el("ul", { class: "list" }, links.map((l) => el("li", {},
+      el("div", { class: "grow" }, el("strong", {}, l.label), el("span", { class: "muted small" }, `${l.site} · ${l.note}`)),
+      el("a", { class: "btn small primary", href: l.url, target: "_blank", rel: "noopener" }, "Suchen ↗"))))];
+  const render = () => {
+    const checkout = addDays(date.value, +n.value);
+    const r = bookingLinks(place, { checkin: date.value, checkout, adults: +ppl.value, maxPrice: +max.value });
+    out.replaceChildren(
+      ...linkList(`🛏 Billig: Hostels, Motels, Pensionen in ${r.city}`, r.budget),
+      ...linkList(`🏠 Ferienwohnungen in ${r.city}`, r.rentals),
+      el("p", { class: "muted small" }, "Die Links öffnen die Suche auf der jeweiligen Seite, Preise stehen erst dort. Tipp: Direkt beim Haus buchen (Web-Link in der Unterkunftsliste) ist oft billiger als über Portale."));
+  };
+  [date, n, ppl, max].forEach((x) => (x.onchange = render));
+  render();
+  return el("div", {},
+    el("div", { class: "row" },
+      el("div", { class: "field" }, el("label", {}, "Anreise"), date),
+      el("div", { class: "field" }, el("label", {}, "Dauer"), n)),
+    el("div", { class: "row" },
+      el("div", { class: "field" }, el("label", {}, "Personen"), ppl),
+      el("div", { class: "field" }, el("label", {}, "Preis je Nacht"), max)),
+    out);
 }
 
 /** Bibliotheken in der Nähe: Öffnungszeiten, WLAN – gut für Regentage und zum Aufladen. */

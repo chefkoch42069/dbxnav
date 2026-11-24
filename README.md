@@ -81,6 +81,13 @@ die Zahl der Abfahrten in der nächsten Stunde, dazu alle Läden und Einrichtung
 und **bis 500 m** drumherum: Lebensmittel, Bäcker & Café, Imbiss & Restaurant, Drogerie & Apotheke, Presse & Reisebedarf,
 Geld & Post, Bahnhofs-Service (WC, Schließfächer, Fahrradparken …), mit Öffnungszeiten und Ebene.
 
+**Online buchen**: Bei jeder Übernachtung einer Tour und im Stadt-Reiter fertige Suchlinks, mit Anreise, Nächten,
+Personen und Preisgrenze schon ausgefüllt. Für billige Unterkünfte: Booking.com (Hostels, Motels, Pensionen oder alles,
+billigste zuerst), Hostelworld, Airbnb-Privatzimmer, Jugendherbergen (DJH), Kayak-Preisvergleich. Für Ferienwohnungen:
+Airbnb (ganze Wohnung) und Booking.com (Ferienwohnungen & -häuser). Die Preise stehen erst auf den Seiten selbst: Freie
+Schnittstellen gibt es dort nicht, und das automatische Auslesen verbieten ihre Nutzungsbedingungen. Unterkünfte aus OSM
+mit eigener Webseite haben in der Liste einen „Web“-Knopf, direkt buchen ist oft billiger.
+
 **ÖPNVKarte anklicken**: Ist die ÖPNVKarte die Grundkarte, zeigt ein Klick die nächste Haltestelle mit allen Linien
 und den nächsten D-Ticket-Abfahrten, mit Sprung zur Abfahrtstafel (nicht im Homeless-Modus, der Klicks selbst nutzt).
 
