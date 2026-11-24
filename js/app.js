@@ -3,6 +3,7 @@ import { initMap, map, groups } from "./ui/map.js";
 import { nav } from "./ui/nav.js";
 import { initPlanTab } from "./ui/planTab.js";
 import { initBoardTab } from "./ui/boardTab.js";
+import { initRouteTab } from "./ui/routeTab.js";
 import { initCollectTab } from "./ui/collectTab.js";
 import { initBudgetTab } from "./ui/budgetTab.js";
 import { initInterrailTab } from "./ui/interrailTab.js";
@@ -29,6 +30,7 @@ tabs.forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)))
 document.getElementById("panelGrip").addEventListener("click", () => panel.classList.toggle("collapsed"));
 
 initPlanTab(document.getElementById("tab-plan"));
+initRouteTab(document.getElementById("tab-route"));
 initBoardTab(document.getElementById("tab-board"));
 initCityTab(document.getElementById("tab-city"));
 initBudgetTab(document.getElementById("tab-budget"));

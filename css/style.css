@@ -170,3 +170,22 @@ details.branch > .list { margin: 0 0 8px 18px; }
 .lines { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
 .lines-row { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .infra-toggles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 2px 10px; }
+
+/* Verbindungssuche */
+.conns { list-style: none; padding: 0; margin: 4px 0; }
+.conn { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 8px 0; cursor: pointer; background: var(--panel); }
+.conn:hover, .conn:focus-visible { border-color: var(--brand); }
+.conn.open { border-color: var(--brand); box-shadow: var(--shadow); cursor: default; }
+.conn.off { opacity: .6; }
+.conn-top { display: flex; align-items: baseline; gap: 10px; }
+.conn-time { font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; }
+.conn-dur { color: var(--muted); }
+.conn-tr { margin-left: auto; color: var(--muted); font-size: 13px; }
+.conn-lines { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
+.conn-meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.conn-meta .note { margin: 0; }
+.note.ok { color: var(--ok); }
+.tag { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; background: var(--soft); color: var(--brand); }
+.conn-day { list-style: none; font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 0; text-transform: uppercase; letter-spacing: .4px; }
+.conn-details { margin-top: 8px; border-top: 1px dashed var(--line); padding-top: 4px; }
+.conn-head { margin: 14px 0 4px; }
