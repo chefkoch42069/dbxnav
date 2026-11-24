@@ -1,0 +1,401 @@
+// Reiter „Planen“: Einstieg über die Reiseart, danach passt sich die Planung an.
+import { el, clear, busy, toast, spinnerLine, errorLine, extLink, direktLink, bahnLink } from "./dom.js";
+import { placeInput } from "./placeInput.js";
+import { renderItinerary, weatherChip, lodgingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails, stayText } from "./details.js";
+import { map, groups, drawItinerary, fitPoints, pinIcon, popupContent, focusOn, DAY_COLORS } from "./map.js";
+import { nav } from "./nav.js";
+import { state, setPref, saveTour, addFavorite, addJournal } from "../state.js";
+import { plan, oneToAll } from "../api/transitous.js";
+import { planTour, latestDeparture, transitArrival } from "../planner/tour.js";
+import { combineReachability } from "../planner/daytrip.js";
+import { suggestRoundtrip } from "../planner/roundtrip.js";
+import { pickBest, pickLatest } from "../planner/dticket.js";
+import { berlinToISO, fmtTime, fmtDate, fmtDuration, todayBerlin, nextWeekday, addDays } from "../lib/time.js";
+import { stateAt } from "../lib/geo.js";
+import { uid } from "../lib/store.js";
+import { STATES } from "../config.js";
+import { loadStates } from "./statesData.js";
+import { addItineraryToCollector, visitedStates } from "../collector.js";
+import { prefetchTour } from "../offline.js";
+
+const KINDS = {
+  day: { title: "Tagestrip", sub: "abends zurück" },
+  weekend: { title: "Wochenende", sub: "1–2 Nächte" },
+  multi: { title: "Mehrtagestour", sub: "3–14 Tage" },
+};
+
+const api = { plan };
+let root, formBox, resultBox;
+let kind = null;
+let start;
+
+export function initPlanTab(container) {
+  root = container;
+  start = placeInput({
+    label: "Start", id: "plan-start", value: state.prefs.home,
+    onSelect: (p) => { setPref("home", p); focusOn(p.lat, p.lon, 10); },
+  });
+  const kindBtns = Object.entries(KINDS).map(([k, v]) =>
+    el("button", { class: "kind", "aria-pressed": "false", "data-kind": k, onclick: () => selectKind(k) }, el("strong", {}, v.title), el("span", {}, v.sub)));
+  formBox = el("div");
+  resultBox = el("div");
+  root.append(
+    el("h2", {}, "Wie lange bist du unterwegs?"),
+    el("p", { class: "lead" }, "Nur Nahverkehr – alles mit dem Deutschlandticket."),
+    el("div", { class: "kinds" }, kindBtns),
+    formBox, resultBox);
+
+  nav.plan.setStart = (p) => { start.value = p; setPref("home", p); };
+  nav.plan.addStop = (p) => { selectKind("multi"); multi.addStop(p); };
+  nav.plan.openTour = (t) => { selectKind(t.kind === "weekend" ? "weekend" : "multi", { keepResult: true }); showTour(t); };
+  nav.plan.suggestRoundtrip = () => { selectKind("multi"); multi.focusSuggest(); };
+}
+
+function selectKind(k, { keepResult = false } = {}) {
+  kind = k;
+  root.querySelectorAll(".kind").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.kind === k)));
+  clear(formBox);
+  if (!keepResult) clear(resultBox);
+  formBox.append(start.node);
+  if (k === "day") dayForm();
+  if (k === "weekend") weekendForm();
+  if (k === "multi") multi.form();
+}
+
+const needStart = () => {
+  if (!start.value) { toast("Bitte zuerst einen Start wählen."); start.focus(); return null; }
+  return start.value;
+};
+
+const hoursSelect = (value, opts = [3, 4, 5, 6, 7, 8, 9, 10]) =>
+  el("select", {}, opts.map((h) => el("option", { value: h, selected: +h === +value }, `${h} h`)));
+
+// ---------------------------------------------------------------- Tagestrip
+function dayForm() {
+  const date = el("input", { type: "date", value: todayBerlin() });
+  const dep = el("input", { type: "time", value: "07:00" });
+  const back = el("input", { type: "time", value: "22:00" });
+  const maxOne = el("select", {}, [1, 1.5, 2, 2.5, 3, 4, 5].map((h) => el("option", { value: h, selected: h === 2.5 }, `${String(h).replace(".", ",")} h`)));
+  const minStay = el("select", {}, [1, 2, 3, 4, 6].map((h) => el("option", { value: h, selected: h === 3 }, `${h} h`)));
+  const go = el("button", { class: "btn primary block" }, "Ziele finden");
+  formBox.append(
+    el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Datum"), date), el("div", { class: "field" }, el("label", {}, "Los ab"), dep), el("div", { class: "field" }, el("label", {}, "Zurück bis"), back)),
+    el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Max. Fahrzeit je Richtung"), maxOne), el("div", { class: "field" }, el("label", {}, "Min. Aufenthalt"), minStay)),
+    go);
+  go.onclick = () => {
+    const s = needStart();
+    if (!s) return;
+    busy(go, () => runDayTrip(s, { date: date.value, dep: dep.value, back: back.value, maxMin: +maxOne.value * 60, minStay: +minStay.value * 3600 }));
+  };
+}
+
+const colorForMinutes = (m) => (m <= 60 ? "#1e7b45" : m <= 105 ? "#7cb342" : m <= 150 ? "#f2a900" : m <= 210 ? "#ef6c00" : "#c62828");
+
+async function runDayTrip(home, o) {
+  clear(resultBox).append(spinnerLine("Frage Erreichbarkeit bei Transitous ab (hin und zurück) …"));
+  groups.daytrip.clearLayers();
+  groups.route.clearLayers();
+  const [outb, inb] = await Promise.all([
+    oneToAll(home, berlinToISO(o.date, o.dep), { maxMinutes: o.maxMin }),
+    oneToAll(home, berlinToISO(o.date, o.back), { maxMinutes: o.maxMin, arriveBy: true }),
+  ]);
+  const dests = combineReachability(home, outb, inb, { minStaySec: o.minStay });
+  clear(resultBox);
+  if (!dests.length) {
+    resultBox.append(el("div", { class: "alert warn" }, "Keine Ziele gefunden. Mehr Fahrzeit oder kürzeren Aufenthalt probieren."));
+    return;
+  }
+  L.marker([home.lat, home.lon], { icon: pinIcon("⌂") }).addTo(groups.daytrip).bindPopup(home.name);
+  const shown = dests.slice(0, 300);
+  for (const d of shown) {
+    L.circleMarker([d.lat, d.lon], { radius: 4 + Math.min(6, d.importance * 600), color: "#fff", weight: 1.5, fillColor: colorForMinutes(d.outMinutes), fillOpacity: 0.95 })
+      .bindTooltip(`${d.name} · ${fmtDuration(d.outMinutes * 60)}`)
+      .on("click", () => showDayDest(home, d, o))
+      .addTo(groups.daytrip);
+  }
+  fitPoints([[home.lat, home.lon], ...shown.map((d) => [d.lat, d.lon])], 10);
+
+  const sortSel = el("select", {}, [["importance", "Bedeutung"], ["stay", "Längster Aufenthalt"], ["near", "Kürzeste Fahrt"]].map(([v, t]) => el("option", { value: v }, t)));
+  const list = el("ul", { class: "list" });
+  const renderList = () => {
+    const arr = [...dests];
+    if (sortSel.value === "stay") arr.sort((a, b) => b.stay - a.stay);
+    if (sortSel.value === "near") arr.sort((a, b) => a.outMinutes - b.outMinutes);
+    list.replaceChildren(...arr.slice(0, 60).map((d) =>
+      el("li", {}, el("div", { class: "grow" }, el("strong", {}, d.name),
+        el("span", { class: "muted small" }, `${fmtDuration(d.outMinutes * 60)} hin · frühestens an ${fmtTime(d.arrival)} · letzte Rückfahrt ${fmtTime(d.lastReturn)} · ${stayText(d.arrival, d.lastReturn)} Zeit`)),
+        el("button", { class: "btn small", onclick: () => showDayDest(home, d, o) }, "Details"))));
+  };
+  sortSel.onchange = renderList;
+  renderList();
+  const dl = direktLink(home);
+  resultBox.append(
+    el("h3", {}, `${dests.length} Ziele hin und zurück am selben Tag`),
+    el("div", { class: "legend small" }, ...[[60, "≤ 1 h"], [105, "≤ 1¾ h"], [150, "≤ 2½ h"], [210, "≤ 3½ h"], [999, "länger"]].map(([m, t]) => el("span", { style: { marginRight: "8px" } }, el("i", { style: { background: colorForMinutes(m) } }), t))),
+    dl ? el("p", { class: "small" }, "Ohne Umstieg erreichbar: ", extLink(dl, "direkt.bahn.guru (nur Regionalverkehr)")) : null,
+    el("div", { class: "field" }, el("label", {}, "Sortieren"), sortSel),
+    list);
+}
+
+function showDayDest(home, d, o) {
+  const box = el("div", { class: "card" });
+  const conn = el("div");
+  const btnConn = el("button", { class: "btn primary small" }, "Hin- und Rückfahrt planen");
+  btnConn.onclick = () => busy(btnConn, async () => {
+    groups.route.clearLayers();
+    const [there, back] = await Promise.all([
+      plan(home, d, berlinToISO(o.date, o.dep)),
+      plan(d, home, berlinToISO(o.date, o.back), { arriveBy: true, numItineraries: 5 }),
+    ]);
+    const hin = pickBest(there), zur = pickLatest(back);
+    clear(conn);
+    const pts = [];
+    if (hin) { conn.append(el("h4", {}, "Hinfahrt"), renderItinerary(hin)); pts.push(...drawItinerary(hin, groups.route, { color: DAY_COLORS[0] })); }
+    else conn.append(el("div", { class: "alert no" }, "Keine Hinfahrt gefunden."));
+    if (zur) {
+      conn.append(el("h4", {}, "Letzte Rückfahrt"), el("div", { class: "alert warn" }, `Spätestens um ${fmtTime(zur.startTime)} ab ${d.name} losfahren!`), renderItinerary(zur));
+      pts.push(...drawItinerary(zur, groups.route, { color: DAY_COLORS[1] }));
+    } else conn.append(el("div", { class: "alert no" }, `Keine Rückfahrt bis ${o.back} gefunden.`));
+    if (hin && zur) conn.append(el("p", {}, `Aufenthalt: ${stayText(hin.endTime, zur.startTime)}`),
+      el("button", { class: "btn small", onclick: async () => { const n = (await addItineraryToCollector(hin)) + (await addItineraryToCollector(zur)); addJournal({ date: o.date, title: `Tagestrip nach ${d.name}` }); toast(`${n} Abschnitte im Sammler, Tagebuch-Eintrag angelegt`); } }, "✓ Bin ich gefahren"));
+    fitPoints(pts);
+  });
+  box.append(
+    el("h4", {}, d.name),
+    el("div", { class: "chips" },
+      el("span", { class: "chip static" }, `frühestens an ${fmtTime(d.arrival)}`),
+      el("span", { class: "chip static" }, `zurück spätestens ${fmtTime(d.lastReturn)}`),
+      el("span", { class: "chip static" }, `${stayText(d.arrival, d.lastReturn)} vor Ort`),
+      weatherChip(d, o.date)),
+    el("div", { class: "btns" }, btnConn,
+      el("button", { class: "btn small", onclick: () => toast(addFavorite(d, "Ausflugsziel") ? "Gemerkt" : "Schon gemerkt") }, "☆ Merken"),
+      el("button", { class: "btn small", onclick: () => nav.board.open(d) }, "Abfahrten"),
+      direktLink(d) ? el("a", { class: "btn small", href: direktLink(d), target: "_blank", rel: "noopener" }, "Direkt von hier") : null),
+    conn,
+    lazyDetails("Lohnende Ausflugsziele (Burgen, Seen, Aussicht)", () => sightsPanel(d)),
+    lazyDetails("Wanderwege in der Umgebung", () => hikingPanel(d)),
+    lazyDetails("Bibliotheken (WLAN, Regentag)", () => libraryPanel(d)),
+    lazyDetails("Infos am Bahnhof (WC, Schließfächer, Supermarkt)", () => stationPanel(d)));
+  const old = resultBox.querySelector(".card.daydest");
+  box.classList.add("daydest");
+  if (old) old.replaceWith(box); else resultBox.prepend(box);
+  focusOn(d.lat, d.lon, Math.max(map.getZoom(), 10));
+  document.getElementById("panel").scrollTop = 0;
+}
+
+// ---------------------------------------------------------------- Wochenende
+function weekendForm() {
+  const dest = placeInput({ label: "Ziel", id: "we-dest", placeholder: "Wohin? (oder unten in der Karte suchen)" });
+  // 2 Nächte = Freitag bis Sonntag, 1 Nacht = Samstag bis Sonntag
+  const date = el("input", { type: "date", value: nextWeekday(todayBerlin(), 5) });
+  const nights = el("select", {}, el("option", { value: 1 }, "1 Nacht"), el("option", { value: 2, selected: true }, "2 Nächte"));
+  let dateTouched = false;
+  date.addEventListener("change", () => (dateTouched = true));
+  nights.addEventListener("change", () => { if (!dateTouched) date.value = nextWeekday(todayBerlin(), +nights.value === 2 ? 5 : 6); });
+  const dep = el("input", { type: "time", value: state.prefs.departTime || "08:00" });
+  const maxH = hoursSelect(state.prefs.maxHours || 6);
+  const go = el("button", { class: "btn primary block" }, "Wochenende planen");
+  const find = el("button", { class: "btn block" }, "Wo lohnt sich eine Nacht? Ziele in Reichweite zeigen");
+  formBox.append(dest.node,
+    el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Anreise"), date), el("div", { class: "field" }, el("label", {}, "Dauer"), nights)),
+    el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Abfahrt"), dep), el("div", { class: "field" }, el("label", {}, "Max. Fahrzeit/Tag"), maxH)),
+    go, el("div", { style: { height: "6px" } }), find);
+  find.onclick = () => {
+    const s = needStart();
+    if (!s) return;
+    busy(find, async () => {
+      groups.daytrip.clearLayers();
+      const res = await oneToAll(s, berlinToISO(date.value, dep.value), { maxMinutes: Math.min(+maxH.value, 5) * 60 });
+      const fake = { all: (res.all || []).map((r) => ({ ...r, place: { ...r.place, departure: "2099-01-01T00:00:00Z" } })) };
+      const dests = combineReachability(s, res, fake, { minStaySec: 0, minDistanceKm: 40 }).slice(0, 250);
+      for (const d of dests) {
+        L.circleMarker([d.lat, d.lon], { radius: 4 + Math.min(6, d.importance * 600), color: "#fff", weight: 1.5, fillColor: colorForMinutes(d.outMinutes), fillOpacity: 0.95 })
+          .bindPopup(() => popupContent([el("strong", {}, d.name), el("br"), `${fmtDuration(d.outMinutes * 60)} Fahrt`, el("br"),
+            el("button", { class: "btn small primary", onclick: () => { dest.value = { name: d.name, lat: d.lat, lon: d.lon, stopId: d.stopId }; map.closePopup(); toast(`Ziel: ${d.name}`); } }, "Als Ziel übernehmen")]))
+          .addTo(groups.daytrip);
+      }
+      fitPoints(dests.map((d) => [d.lat, d.lon]), 9);
+      toast(`${dests.length} Orte in Reichweite – Punkt antippen und als Ziel übernehmen.`);
+    });
+  };
+  go.onclick = () => {
+    const s = needStart();
+    if (!s) return;
+    if (!dest.value) return toast("Bitte ein Ziel wählen.");
+    setPref("maxHours", +maxH.value); setPref("departTime", dep.value);
+    const params = { start: s, stops: [{ place: dest.value, nights: +nights.value }], roundtrip: true, startDate: date.value, departTime: dep.value, maxHours: +maxH.value };
+    busy(go, () => runTour({ kind: "weekend", name: `Wochenende ${dest.value.name}`, params }));
+  };
+}
+
+// ---------------------------------------------------------------- Mehrtagestour
+const multi = (() => {
+  let stops = [];
+  let listBox, suggestDays, suggestBox;
+  const renderStops = () => {
+    if (!listBox) return;
+    listBox.replaceChildren(...stops.map((s, i) =>
+      el("li", {},
+        el("div", { class: "grow" }, el("strong", {}, `${i + 1}. ${s.place.name}`)),
+        el("select", { "aria-label": "Nächte", onchange: (e) => (s.nights = +e.target.value) }, [1, 2, 3, 4].map((n) => el("option", { value: n, selected: n === s.nights }, `${n} N.`))),
+        el("button", { class: "btn small", title: "nach oben", disabled: i === 0, onclick: () => { [stops[i - 1], stops[i]] = [stops[i], stops[i - 1]]; renderStops(); } }, "↑"),
+        el("button", { class: "btn small", title: "entfernen", onclick: () => { stops.splice(i, 1); renderStops(); } }, "✕"))));
+    if (!stops.length) listBox.append(el("li", { class: "muted small" }, "Noch keine Ziele. Unten hinzufügen oder einen Vorschlag holen."));
+  };
+  return {
+    addStop(p) { stops.push({ place: p, nights: 1 }); renderStops(); toast(`${p.name} hinzugefügt`); },
+    focusSuggest() { suggestDays?.focus(); suggestBox?.scrollIntoView({ behavior: "smooth" }); },
+    form() {
+      const add = placeInput({ label: "Ziel hinzufügen", id: "multi-add", onSelect: (p) => { multi.addStop(p); add.value = null; } });
+      listBox = el("ul", { class: "list" });
+      const round = el("input", { type: "checkbox", checked: true });
+      const date = el("input", { type: "date", value: addDays(todayBerlin(), 1) });
+      const dep = el("input", { type: "time", value: state.prefs.departTime || "08:00" });
+      const maxH = hoursSelect(state.prefs.maxHours || 6);
+      const go = el("button", { class: "btn primary block" }, "Tour planen");
+      suggestDays = el("input", { type: "number", min: 2, max: 14, value: 7 });
+      const sugBtn = el("button", { class: "btn" }, "Runde vorschlagen");
+      suggestBox = el("div", { class: "card" },
+        el("strong", {}, "Rundreise-Vorschlag"),
+        el("p", { class: "muted small" }, "Eine Runde durch Bundesländer, in denen du laut Sammler noch nicht warst – ein Ort pro Nacht."),
+        el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Tage"), suggestDays), sugBtn));
+      sugBtn.onclick = async () => {
+        const s = needStart();
+        if (!s) return;
+        const fc = await loadStates();
+        const homeState = stateAt(s.lat, s.lon, fc);
+        const visited = [...visitedStates().all];
+        const r = suggestRoundtrip(s, +suggestDays.value, visited, { maxHours: +maxH.value, homeState });
+        if (!r.length) return toast("Kein Vorschlag möglich – mehr Tage oder mehr Fahrzeit pro Tag wählen.");
+        stops = r.map((x) => ({ place: { name: x.hub.name, lat: x.hub.lat, lon: x.hub.lon }, nights: 1 }));
+        round.checked = true;
+        renderStops();
+        toast(`Neu: ${r.map((x) => STATES[x.state]).join(", ")}`, 5000);
+      };
+      formBox.append(listBox, add.node,
+        el("label", { class: "check" }, round, "Rundreise (am Ende zurück zum Start)"),
+        el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Start am"), date), el("div", { class: "field" }, el("label", {}, "Abfahrt"), dep), el("div", { class: "field" }, el("label", {}, "Max./Tag"), maxH)),
+        go, suggestBox);
+      renderStops();
+      go.onclick = () => {
+        const s = needStart();
+        if (!s) return;
+        if (!stops.length) return toast("Bitte mindestens ein Ziel hinzufügen.");
+        setPref("maxHours", +maxH.value); setPref("departTime", dep.value);
+        const params = { start: s, stops: stops.map((x) => ({ ...x })), roundtrip: round.checked, startDate: date.value, departTime: dep.value, maxHours: +maxH.value };
+        busy(go, () => runTour({ kind: "multi", name: `Tour ${stops.map((x) => x.place.name.replace(/ Hbf$/, "")).join(" – ")}`, params }));
+      };
+    },
+    setStops(s) { stops = s; renderStops(); },
+  };
+})();
+
+// ---------------------------------------------------------------- Tour planen & anzeigen
+async function runTour({ kind: k, name, params }) {
+  clear(resultBox).append(spinnerLine("Plane Etappen …"));
+  const progress = resultBox.firstChild;
+  const days = await planTour(params, api, (d) => (progress.lastChild.textContent = ` Plane Etappen … ${d.length} Tag(e) fertig`));
+  const tour = { id: uid(), kind: k, name, params, days: slimDays(days), created: new Date().toISOString() };
+  showTour(tour);
+  document.getElementById("panel").scrollTop = resultBox.offsetTop - 10;
+}
+
+function slimDays(days) {
+  return days.map((d) => d.itinerary ? { ...d, itinerary: { ...d.itinerary, legs: d.itinerary.legs.map(({ steps, alternatives, tripFrom, tripTo, ...l }) => l) } } : d);
+}
+
+function showTour(tour) {
+  clear(resultBox);
+  groups.route.clearLayers();
+  groups.daytrip.clearLayers();
+  const { params, days } = tour;
+  const pts = [];
+  const totalTravel = days.reduce((s, d) => s + (d.itinerary?.duration || 0), 0);
+  const nights = days.filter((d) => d.overnight).reduce((s, d) => s + (d.nights || 1), 0);
+  const lastDate = days.length ? days[days.length - 1].date : params.startDate;
+
+  const saveBtn = el("button", { class: "btn small" }, state.tours.some((t) => t.id === tour.id) ? "✓ Gespeichert" : "Speichern");
+  saveBtn.onclick = () => { saveTour(tour); saveBtn.textContent = "✓ Gespeichert"; toast("Tour in der Merkliste gespeichert"); };
+  const doneBtn = el("button", { class: "btn small" }, "✓ Bin ich gefahren");
+  doneBtn.onclick = () => busy(doneBtn, async () => {
+    let n = 0;
+    for (const d of days) if (d.itinerary) n += await addItineraryToCollector(d.itinerary);
+    addJournal({ date: params.startDate, title: tour.name, text: days.map((d) => `${fmtDate(d.date)}: ${d.from.name} → ${d.to.name}`).join("\n"), tourId: tour.id });
+    toast(`${n} Abschnitte im Sammler, Tagebuch-Eintrag angelegt`);
+  });
+  const offBtn = el("button", { class: "btn small" }, "Offline-Paket");
+  offBtn.onclick = () => busy(offBtn, async () => { saveTour(tour); saveBtn.textContent = "✓ Gespeichert"; await prefetchTour(tour, (msg) => (offBtn.lastChild.textContent = ` ${msg}`)); });
+
+  resultBox.append(
+    el("h3", {}, tour.name),
+    el("div", { class: "chips" },
+      el("span", { class: "chip static" }, `${fmtDate(params.startDate)} – ${fmtDate(lastDate)}`),
+      el("span", { class: "chip static" }, `${nights} Nächte`),
+      el("span", { class: "chip static" }, `${fmtDuration(totalTravel)} Fahrzeit`),
+      el("span", { class: "chip static" }, `max. ${params.maxHours} h/Tag`)),
+    el("div", { class: "btns" }, saveBtn, doneBtn, offBtn));
+
+  const latestQueue = [];
+  days.forEach((d, i) => {
+    const color = DAY_COLORS[i % DAY_COLORS.length];
+    const card = el("div", { class: "card day", style: { borderLeftColor: color } });
+    card.append(el("h4", {}, `Tag ${i + 1} · ${fmtDate(d.date)}`), el("div", {}, el("strong", {}, d.from.name), " → ", el("strong", {}, d.to.name)));
+    if (d.error) card.append(el("div", { class: "alert no" }, d.error, ". Tipp: andere Abfahrtszeit oder Zwischenziel probieren."));
+    if (!d.reachedTarget && d.finalTarget) card.append(el("div", { class: "muted small" }, `Etappe auf dem Weg nach ${d.finalTarget.name} (Tageslimit ${params.maxHours} h)`));
+    if (d.slightlyOver) card.append(el("div", { class: "muted small" }, "Etwas länger als dein Tageslimit – dafür kein Übernachtungsstopp kurz vor dem Ziel."));
+    if (d.overLimit) card.append(el("div", { class: "alert warn" }, "Diese Etappe ist länger als dein Tageslimit – es gibt unterwegs keinen sinnvollen Halt."));
+    if (d.itinerary) {
+      card.append(renderItinerary(d.itinerary));
+      pts.push(...drawItinerary(d.itinerary, groups.route, { color }));
+      const warn = el("div", { class: "alert warn" }, el("span", { class: "spinner" }), " Prüfe letzte Verbindung …");
+      card.append(warn);
+      latestQueue.push(async () => {
+        try {
+          const last = await latestDeparture(d.from, d.to, d.date, api);
+          warn.replaceChildren(last
+            ? `⏰ Letzte Verbindung: spätestens ${fmtTime(last.startTime)} ab ${d.from.name} losfahren (an ${fmtTime(transitArrival(last))}). Nachtzüge gibt es mit dem D-Ticket nicht.`
+            : "⏰ Keine spätere Verbindung am selben Tag gefunden – nicht trödeln!");
+        } catch {
+          warn.replaceChildren("Letzte Verbindung konnte nicht geprüft werden (offline?).");
+        }
+      });
+      card.append(el("div", { class: "btns" },
+        el("a", { class: "btn small", href: bahnLink(d.from, d.to, d.itinerary.startTime), target: "_blank", rel: "noopener", title: "Im DB Navigator/bahn.de „Nur Nahverkehr“ wählen" }, "Bei DB gegenprüfen"),
+        el("button", { class: "btn small", onclick: () => nav.board.open(d.from) }, "Abfahrten")));
+    }
+    if (d.overnight) {
+      const o = d.overnight;
+      L.marker([o.lat, o.lon], { icon: pinIcon(i + 1, color) }).addTo(groups.route).bindPopup(`Nacht ${i + 1}: ${o.name.replace(/[<>&]/g, "")}`);
+      const night = el("div", { class: "card", style: { background: "var(--soft)" } },
+        el("strong", {}, `🛏 Übernachtung in ${o.name}`, d.nights > 1 ? ` (${d.nights} Nächte)` : ""),
+        el("div", { class: "chips" }, weatherChip(o, d.date)),
+        lazyDetails(`Unterkünfte bis 50 € um ${o.name}`, () => lodgingPanel(o)),
+        lazyDetails("Infos am Bahnhof", () => stationPanel(o)),
+        lazyDetails("Wanderwege in der Umgebung", () => hikingPanel(o)),
+        lazyDetails("Bibliotheken (WLAN, Regentag)", () => libraryPanel(o)),
+        d.nights > 1 ? lazyDetails("Ausflugsziele für den freien Tag", () => sightsPanel(o)) : null);
+      if (d.alternatives?.length > 1) {
+        const sel = el("select", {}, el("option", { value: "" }, "Lieber woanders übernachten …"),
+          d.alternatives.filter((a) => a.place.name !== o.name).map((a, k) => el("option", { value: k }, `${a.place.name} (an ${fmtTime(a.arrival)})`)));
+        const alts = d.alternatives.filter((a) => a.place.name !== o.name);
+        sel.onchange = () => {
+          if (sel.value === "") return;
+          const alt = alts[+sel.value].place;
+          const stops = [...params.stops];
+          const idx = Math.max(0, stops.findIndex((s) => s.place.name === d.finalTarget?.name));
+          stops.splice(idx, 0, { place: alt, nights: 1 });
+          runTour({ kind: tour.kind, name: tour.name, params: { ...params, stops } }).catch((e) => clear(resultBox).append(errorLine(e)));
+        };
+        night.append(el("div", { class: "field", style: { marginTop: "8px" } }, el("label", {}, "Kleinerer Ort = oft günstiger"), sel));
+      }
+      card.append(night);
+    }
+    resultBox.append(card);
+  });
+  L.marker([params.start.lat, params.start.lon], { icon: pinIcon("⌂") }).addTo(groups.route).bindPopup(params.start.name.replace(/[<>&]/g, ""));
+  fitPoints(pts, 11);
+  // „Letzte Verbindung“ nacheinander abfragen, um Transitous nicht zu überlasten
+  (async () => { for (const job of latestQueue) await job(); })();
+}
+
+export { showTour };

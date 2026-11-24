@@ -1,0 +1,10 @@
+{
+  "name": "D-Ticket Reiseplaner",
+  "short_name": "Reiseplaner",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f5f0",
+  "theme_color": "#0f5132",
+  "lang": "de",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

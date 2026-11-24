@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>D-Ticket Reiseplaner</title>
+  <meta name="description" content="Mit dem Deutschlandticket durchs Land: Tagestrips, Wochenenden und Mehrtagestouren im Nahverkehr, mit Unterkünften bis 50 € pro Nacht.">
+  <meta name="theme-color" content="#0f5132">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo" aria-hidden="true">D</span><span>Reiseplaner</span></div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="plan" aria-selected="true">Planen</button>
+      <button role="tab" data-tab="board">Abfahrten</button>
+      <button role="tab" data-tab="collect">Sammler</button>
+      <button role="tab" data-tab="saved">Merkliste</button>
+    </nav>
+  </header>
+  <main class="layout">
+    <aside class="panel" id="panel">
+      <button class="panel-grip" id="panelGrip" aria-label="Seitenleiste ein-/ausklappen"></button>
+      <section data-panel="plan" id="tab-plan"></section>
+      <section data-panel="board" id="tab-board" hidden></section>
+      <section data-panel="collect" id="tab-collect" hidden></section>
+      <section data-panel="saved" id="tab-saved" hidden></section>
+    </aside>
+    <div id="map" role="application" aria-label="Karte"></div>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
