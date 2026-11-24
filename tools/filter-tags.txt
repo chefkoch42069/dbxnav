@@ -1,0 +1,8 @@
+# Vorfilter für osmium tags-filter: nur Objekte, die die App braucht.
+# Eine Zeile = ein Ausdruck (siehe `man osmium-tags-filter`). n = Knoten, w = Wege.
+nw/amenity=drinking_water,water_point,toilets,shower,device_charging_station,food_sharing,give_box,shelter,social_facility,library,fast_food,canteen,locker,lockers,luggage_locker,pharmacy,atm
+nw/social_facility
+nw/shop=supermarket,bakery,convenience,kiosk
+nw/tourism=hotel,hostel,guest_house,motel,apartment,camp_site,alpine_hut,chalet,wilderness_hut
+nw/internet_access:fee=no
+nw/power_supply=yes

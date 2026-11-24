@@ -1,10 +1,12 @@
 // Service Worker: App offline verfügbar, Kacheln zwischenspeichern (begrenzt), API-Antworten als Rückfall.
-const VERSION = "v5";
+const VERSION = "v7";
 const SHELL = `shell-${VERSION}`;
 const TILES = "tiles";
 const API = "api";
 const MAX_TILES = 2500;
 const MAX_API = 300;
+const POI = "poi";
+const MAX_POI = 600; // Ortsdaten-Kacheln (je ~6 × 6 km)
 
 const SHELL_FILES = [
   "./", "index.html", "css/style.css", "icon.svg", "manifest.webmanifest",
@@ -13,7 +15,7 @@ const SHELL_FILES = [
   "data/bundeslaender.geojson",
   "js/app.js", "js/config.js", "js/state.js", "js/collector.js", "js/offline.js",
   "js/lib/time.js", "js/lib/polyline.js", "js/lib/geo.js", "js/lib/store.js",
-  "js/api/http.js", "js/api/transitous.js", "js/api/overpass.js", "js/api/weather.js",
+  "js/api/http.js", "js/api/transitous.js", "js/api/overpass.js", "js/api/localPoi.js", "js/api/weather.js",
   "js/planner/dticket.js", "js/planner/stages.js", "js/planner/tour.js", "js/planner/daytrip.js", "js/planner/roundtrip.js", "js/planner/accommodation.js", "js/planner/departures.js", "js/planner/budget.js",
   "js/ui/dom.js", "js/ui/map.js", "js/ui/nav.js", "js/ui/placeInput.js", "js/ui/details.js", "js/ui/statesData.js",
   "js/ui/planTab.js", "js/ui/budgetTab.js", "js/ui/boardTab.js", "js/ui/collectTab.js", "js/ui/savedTab.js",
@@ -53,11 +55,11 @@ async function tileFirst(req) {
   return res;
 }
 
-async function networkFirst(req) {
-  const c = await caches.open(API);
+async function networkFirst(req, cacheName = API, max = MAX_API) {
+  const c = await caches.open(cacheName);
   try {
     const res = await fetch(req);
-    if (res.ok) { await c.put(req, res.clone()); trim(API, MAX_API); }
+    if (res.ok) { await c.put(req, res.clone()); trim(cacheName, max); }
     return res;
   } catch (err) {
     const hit = await c.match(req);
@@ -66,11 +68,19 @@ async function networkFirst(req) {
   }
 }
 
-async function staleWhileRevalidate(req) {
+// Eigene Dateien: erst Netz (immer die aktuelle Version), offline aus dem Cache.
+// Vorher stale-while-revalidate – das lieferte nach einem Update beim ersten Laden noch alten Code.
+async function appNetworkFirst(req) {
   const c = await caches.open(SHELL);
-  const hit = await c.match(req, { ignoreSearch: true });
-  const net = fetch(req).then((res) => { if (res.ok) c.put(req, res.clone()); return res; }).catch(() => hit);
-  return hit || net;
+  try {
+    const res = await fetch(req, { cache: "no-cache" });
+    if (res.ok) c.put(req, res.clone());
+    return res;
+  } catch (err) {
+    const hit = await c.match(req, { ignoreSearch: true });
+    if (hit) return hit;
+    throw err;
+  }
 }
 
 self.addEventListener("fetch", (e) => {
@@ -79,5 +89,6 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (TILE_HOSTS.some((h) => url.hostname.endsWith(h))) return e.respondWith(tileFirst(req));
   if (API_HOSTS.includes(url.hostname)) return e.respondWith(networkFirst(req));
-  if (url.origin === self.location.origin) return e.respondWith(staleWhileRevalidate(req));
+  if (url.origin === self.location.origin && url.pathname.includes("/data/poi/")) return e.respondWith(networkFirst(req, POI, MAX_POI));
+  if (url.origin === self.location.origin) return e.respondWith(appNetworkFirst(req));
 });

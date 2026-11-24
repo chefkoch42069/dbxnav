@@ -16,6 +16,7 @@ export function placeInput({ label, placeholder = "Bahnhof oder Ort", value = nu
     selected = p;
     input.value = p.name;
     box.hidden = true;
+    box.replaceChildren();
     onSelect?.(p);
   };
 
@@ -51,7 +52,21 @@ export function placeInput({ label, placeholder = "Bahnhof oder Ort", value = nu
       }
     }, 250);
   });
-  input.addEventListener("keydown", (e) => {
+  input.addEventListener("keydown", async (e) => {
+    // Enter, bevor die Vorschläge da sind: sofort suchen und den ersten Treffer nehmen
+    if (e.key === "Enter" && (box.hidden || !results.length) && input.value.trim().length >= 2) {
+      e.preventDefault();
+      clearTimeout(timer);
+      box.replaceChildren(el("div", { class: "muted small", style: { padding: "8px 10px" } }, el("span", { class: "spinner" }), " Suche …"));
+      box.hidden = false;
+      try {
+        let r = await geocode(input.value.trim());
+        if (stopsOnly) r = r.filter((x) => x.type === "STOP");
+        r.sort((a, b) => (b.type === "STOP") - (a.type === "STOP") || b.rail - a.rail);
+        if (r[0]) choose(r[0]); else { box.hidden = true; toast("Nichts gefunden."); }
+      } catch (err) { box.hidden = true; toast(err.message); }
+      return;
+    }
     if (box.hidden) return;
     if (e.key === "ArrowDown") { active = Math.min(results.length - 1, active + 1); render(); e.preventDefault(); }
     else if (e.key === "ArrowUp") { active = Math.max(0, active - 1); render(); e.preventDefault(); }

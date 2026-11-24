@@ -58,7 +58,8 @@ export function spinnerLine(text) {
 }
 
 export function errorLine(e) {
-  return el("div", { class: "alert no" }, e.message || String(e));
+  return el("div", { class: "alert no" }, e.message || String(e),
+    e.details?.length ? el("details", { class: "small" }, el("summary", {}, "Details"), el("ul", {}, e.details.map((d) => el("li", {}, d)))) : null);
 }
 
 // ---- Links zu bestehenden Diensten (verlinken statt neu bauen) ----

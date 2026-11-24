@@ -20,6 +20,35 @@ Tests (reine Planungslogik, Node ≥ 20):
 npm test
 ```
 
+## Veröffentlichen (GitHub Pages)
+
+Der Workflow `.github/workflows/pages.yml` testet, erzeugt die Ortsdaten und veröffentlicht die App,
+bei jedem Push auf `main`, jeden Montag (frische OSM-Daten) und auf Knopfdruck (Actions → „GitHub Pages“ → „Run workflow“).
+
+Einmalig einrichten:
+
+1. Repository öffentlich machen **oder** ein GitHub-Abo mit Pages für private Repos nutzen.
+2. Settings → Pages → Build and deployment → Source: **GitHub Actions**.
+
+Danach läuft die App unter `https://<benutzer>.github.io/dbxnav/`, mit HTTPS. Damit funktionieren auch Standort und Offline-Modus.
+
+## Ortsdaten
+
+Unterkünfte, Bahnhofs-Infos, Bibliotheken und der Unterwegs-Modus lesen vorab erzeugte Daten aus `data/poi/`.
+Das geht schnell, braucht keinen fremden Server und funktioniert offline. Fehlen die Daten, etwa beim lokalen Start, fragt die App wie bisher Overpass.
+Ausflugsziele und Wanderwege-Liste kommen weiterhin live von Overpass.
+
+Selbst erzeugen (braucht `osmium-tool` und `pip install osmium`):
+
+```bash
+curl -LO https://download.geofabrik.de/europe/germany/thueringen-latest.osm.pbf
+grep -v '^#' tools/filter-tags.txt | grep . > /tmp/expr.txt
+osmium tags-filter thueringen-latest.osm.pbf --expressions=/tmp/expr.txt -o filtered.osm.pbf
+python3 tools/build_poi.py filtered.osm.pbf data/poi
+```
+
+`data/poi/` steht in `.gitignore`. Die Daten werden nicht eingecheckt, sondern beim Veröffentlichen erzeugt.
+
 ## Funktionen
 
 **Einstieg „Wie lange bist du unterwegs?“**
@@ -84,8 +113,8 @@ Offline-Grenzen, **IC-Ausnahmestrecken** und die Knotenbahnhöfe je Bundesland f
 - **IC-Ausnahmen** (IC 87 Gäubahn, IC 56 Bremen–Norddeich) sind als *ungeprüft* markiert und müssen vor jeder Saison
   bestätigt werden. Die Regeln ändern sich meist zum Fahrplanwechsel im Dezember. IC 87 führt Transitous ohnehin als Regionalverkehr.
 - Die Parameter des **direkt.bahn.guru**-Links (`?origin=<EVA>&local=true`) sind nicht verifiziert.
-- Overpass (Unterkünfte, Bahnhofs-Infos, Ausflugsziele, Wanderwege-Liste, Bibliotheken, Unterwegs) war aus der
-  Entwicklungsumgebung nicht erreichbar. Getestet wurde mit nachgestellten Antworten, live nur stichprobenartig.
+- Overpass war aus der Entwicklungsumgebung nicht erreichbar, ebenso Geofabrik. Die Daten-Pipeline wurde mit einer
+  kleinen handgeschriebenen OSM-Datei getestet. Der erste echte Lauf mit ganz Deutschland passiert in der GitHub Action.
   Overpass braucht keinen API-Schlüssel. Bei Überlast (502/504/429) wechselt die App automatisch zwischen vier
   Servern (`OVERPASS_ENDPOINTS` in `js/config.js`).
 - Viele OSM-Einträge haben keine Angaben zu Gebühr, Zugang oder Zielgruppe. Der Unterwegs-Modus zeigt solche Orte
@@ -102,6 +131,8 @@ js/planner/           reine Logik (getestet): D-Ticket-Prüfung, Etappen, Touren
 js/ui/                Reiter, Karte, Eingabefelder
 data/                 Bundesländer (Natural Earth, gemeinfrei, vereinfacht)
 vendor/leaflet/       Leaflet 1.9.4 (für offline)
+tools/                Daten-Pipeline: OSM-Auszug → Ortsdaten-Kacheln
+.github/workflows/    Tests, Daten erzeugen, GitHub Pages
 tests/                node:test
 ```
 

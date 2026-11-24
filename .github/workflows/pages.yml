@@ -1,0 +1,74 @@
+# Veröffentlicht die App auf GitHub Pages – inklusive wöchentlich neu erzeugter Ortsdaten.
+# Einmalig nötig: Settings → Pages → Build and deployment → Source: „GitHub Actions“.
+name: GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1" # montags 03:17 UTC: Ortsdaten auffrischen
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Werkzeuge installieren
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q osmium-tool
+          pip install --quiet osmium
+
+      - name: Deutschland-Auszug laden (Geofabrik)
+        run: curl -fsSL --retry 3 -o germany.osm.pbf https://download.geofabrik.de/europe/germany-latest.osm.pbf
+
+      - name: Orte filtern
+        run: |
+          grep -v '^#' tools/filter-tags.txt | grep . > /tmp/expr.txt
+          osmium tags-filter germany.osm.pbf --expressions=/tmp/expr.txt -o filtered.osm.pbf --overwrite
+          rm germany.osm.pbf
+          ls -lh filtered.osm.pbf
+
+      - name: Seite zusammenstellen
+        run: |
+          mkdir -p _site
+          cp -r index.html icon.svg manifest.webmanifest sw.js css js data vendor _site/
+          POI_SOURCE="Geofabrik germany-latest" python3 tools/build_poi.py filtered.osm.pbf _site/data/poi
+          du -sh _site _site/data/poi
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
