@@ -16,6 +16,7 @@ import { uid } from "../lib/store.js";
 import { STATES } from "../config.js";
 import { loadStates } from "./statesData.js";
 import { addItineraryToCollector, visitedStates } from "../collector.js";
+import { budgetPanel } from "./budgetTab.js";
 import { prefetchTour } from "../offline.js";
 
 const KINDS = {
@@ -175,6 +176,7 @@ function showDayDest(home, d, o) {
     lazyDetails("Lohnende Ausflugsziele (Burgen, Seen, Aussicht)", () => sightsPanel(d)),
     lazyDetails("Wanderwege in der Umgebung", () => hikingPanel(d)),
     lazyDetails("Bibliotheken (WLAN, Regentag)", () => libraryPanel(d)),
+    lazyDetails("Kostenlos & billig (Essen, Strom, WLAN, Wasser)", () => budgetPanel(d)),
     lazyDetails("Infos am Bahnhof (WC, Schließfächer, Supermarkt)", () => stationPanel(d)));
   const old = resultBox.querySelector(".card.daydest");
   box.classList.add("daydest");
@@ -373,6 +375,7 @@ function showTour(tour) {
         lazyDetails("Infos am Bahnhof", () => stationPanel(o)),
         lazyDetails("Wanderwege in der Umgebung", () => hikingPanel(o)),
         lazyDetails("Bibliotheken (WLAN, Regentag)", () => libraryPanel(o)),
+        lazyDetails("Kostenlos & billig (Essen, Strom, WLAN, Wasser)", () => budgetPanel(o)),
         d.nights > 1 ? lazyDetails("Ausflugsziele für den freien Tag", () => sightsPanel(o)) : null);
       if (d.alternatives?.length > 1) {
         const sel = el("select", {}, el("option", { value: "" }, "Lieber woanders übernachten …"),

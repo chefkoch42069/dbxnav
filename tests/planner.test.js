@@ -9,6 +9,7 @@ import { suggestRoundtrip } from "../js/planner/roundtrip.js";
 import { estimatePrice } from "../js/planner/accommodation.js";
 import { prepareDepartures, groupOf } from "../js/planner/departures.js";
 import { hikingInfo, libraryInfo, waymarkedLink } from "../js/api/overpass.js";
+import { classify } from "../js/planner/budget.js";
 
 const A = P("Hamburg Hbf", 53.55, 10.0), B = P("Uelzen", 52.97, 10.55), C = P("Hannover Hbf", 52.38, 9.74),
   D = P("Göttingen", 51.54, 9.93), E = P("Würzburg Hbf", 49.8, 9.94);
@@ -169,4 +170,26 @@ test("Bibliotheken: WLAN und Art erkennen", () => {
   assert.equal(i.type, "Bibliothek");
   assert.equal(libraryInfo({ name: "Universitätsbibliothek" }).type, "Hochschulbibliothek");
   assert.equal(libraryInfo({}).wifi, false);
+});
+
+test("Unterwegs-Modus: Orte richtig einordnen", () => {
+  assert.equal(classify({ amenity: "social_facility", name: "Bahnhofsmission Erfurt" }).cat, "help");
+  assert.equal(classify({ amenity: "social_facility", social_facility: "food_bank", name: "Tafel" }).cat, "freefood");
+  assert.equal(classify({ amenity: "food_sharing" }).cat, "freefood");
+  assert.equal(classify({ shop: "supermarket", brand: "Lidl" }).cat, "cheapfood");
+  assert.equal(classify({ shop: "supermarket", brand: "Edeka" }), null);
+  assert.equal(classify({ amenity: "toilets", fee: "no" }).free, true);
+  assert.equal(classify({ amenity: "toilets", fee: "yes" }).free, false);
+  assert.equal(classify({ amenity: "drinking_water" }).cat, "water");
+  assert.equal(classify({ amenity: "shelter", shelter_type: "public_transport" }), null);
+  assert.equal(classify({ amenity: "device_charging_station" }).cat, "power");
+  const cafe = classify({ amenity: "cafe", internet_access: "wlan", "internet_access:fee": "no" });
+  assert.equal(cafe.cat, "wifi");
+  const lib = classify({ amenity: "library", internet_access: "wlan" });
+  assert.equal(lib.cat, "wifi");
+  assert.ok(lib.extras.includes("power?"));
+  const mc = classify({ amenity: "fast_food", brand: "McDonald's", internet_access: "wlan", "internet_access:fee": "no" });
+  assert.equal(mc.cat, "cheapfood");
+  assert.deepEqual(mc.extras, ["wifi"]);
+  assert.equal(classify({ amenity: "bench" }), null);
 });

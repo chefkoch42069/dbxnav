@@ -117,6 +117,22 @@ out center tags 60;`;
   return elements(await query(ql), center).map((e) => ({ ...e, info: libraryInfo(e.tags) }));
 }
 
+// ---- Unterwegs-Modus: kostenlos & billig ----
+export async function budgetPlaces(center, radiusM = 1500) {
+  const a = `(around:${radiusM},${center.lat},${center.lon})`;
+  const ql = `[out:json][timeout:40];
+(
+  nwr["amenity"~"^(drinking_water|water_point|toilets|shower|device_charging_station|food_sharing|give_box|shelter|social_facility|library|fast_food|canteen)$"]${a};
+  nwr["social_facility"]${a};
+  nwr["shop"~"^(supermarket|bakery)$"]${a};
+  nwr["internet_access"~"^(wlan|yes|wifi|public)$"]["internet_access:fee"="no"]${a};
+  nwr["power_supply"="yes"]${a};
+  nwr["name"~"Bahnhofsmission|Fairteiler|Tafel",i]${a};
+);
+out center tags 500;`;
+  return elements(await query(ql), center);
+}
+
 export function sightCategory(tags) {
   if (tags.historic === "castle" || tags.historic === "palace" || tags.historic === "fort") return "Burg/Schloss";
   if (tags.historic === "ruins") return "Ruine";

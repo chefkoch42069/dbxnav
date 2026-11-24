@@ -45,6 +45,8 @@ U-Bahn, Tram, Bus und Fähre, auch von Haltestellen direkt am Bahnhof. Filter je
 Gleis, Fernverkehr optional ausgegraut. Antippen zeigt den Fahrtverlauf auf der Karte, und von jedem Halt kann man
 weiter zu dessen Abfahrten springen. Ein langer Druck bzw. Rechtsklick auf die Karte wählt die nächste Haltestelle.
 
+**Unterwegs**: kostenlos & billig rund um einen Bahnhof, den Standort oder die Kartenmitte – Bahnhofsmission und Hilfsangebote, Tafeln/Foodsharing-Fairteiler, Discounter/Bäcker/Imbiss, Handy-Ladestationen und Steckdosen, Gratis-WLAN, Trinkwasser, kostenlose Toiletten, Duschen, Schutzhütten, Verschenkregale. Filter je Kategorie, „nur kostenlose“, Fußweg-Link. Auch als Abschnitt bei jedem Übernachtungsort.
+
 **Sammler**: gefahrene Strecken als farbige Linien und Bundesländer zum Abhaken (automatisch aus den Strecken,
 manuell korrigierbar). **Rundreise-Vorschlag**: „N Tage, zeig mir eine Runde durch Länder, in denen ich noch nicht war“.
 

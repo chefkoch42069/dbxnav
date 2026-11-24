@@ -3,6 +3,7 @@
 import { el, clear, toast, spinnerLine, errorLine, direktLink } from "./dom.js";
 import { placeInput } from "./placeInput.js";
 import { stationPanel, hikingPanel, libraryPanel } from "./details.js";
+import { budgetPanel } from "./budgetTab.js";
 import { map, groups, fitPoints, pinIcon, focusOn, trackLabel } from "./map.js";
 import { nav } from "./nav.js";
 import { addFavorite } from "../state.js";
@@ -73,6 +74,7 @@ async function open(p) {
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Infos am Bahnhof ${p.name}`), stationPanel(p))); } }, "Bahnhofs-Infos"),
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Wanderwege um ${p.name}`), hikingPanel(p))); } }, "🥾 Wanderwege"),
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Bibliotheken um ${p.name}`), libraryPanel(p))); } }, "📚 Bibliotheken"),
+    el("button", { class: "btn small", onclick: () => nav.budget.open(p) }, "🥖🔌📶 Unterwegs"),
     dl ? el("a", { class: "btn small", href: dl, target: "_blank", rel: "noopener" }, "Wohin direkt?") : null));
   await reload();
 }
