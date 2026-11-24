@@ -1,7 +1,7 @@
 // Reiter „Planen“: Einstieg über die Reiseart, danach passt sich die Planung an.
 import { el, clear, busy, toast, spinnerLine, errorLine, extLink, direktLink, bahnLink } from "./dom.js";
 import { placeInput } from "./placeInput.js";
-import { renderItinerary, weatherChip, lodgingPanel, stationPanel, sightsPanel, lazyDetails, stayText } from "./details.js";
+import { renderItinerary, weatherChip, lodgingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails, stayText } from "./details.js";
 import { map, groups, drawItinerary, fitPoints, pinIcon, popupContent, focusOn, DAY_COLORS } from "./map.js";
 import { nav } from "./nav.js";
 import { state, setPref, saveTour, addFavorite, addJournal } from "../state.js";
@@ -173,6 +173,8 @@ function showDayDest(home, d, o) {
       direktLink(d) ? el("a", { class: "btn small", href: direktLink(d), target: "_blank", rel: "noopener" }, "Direkt von hier") : null),
     conn,
     lazyDetails("Lohnende Ausflugsziele (Burgen, Seen, Aussicht)", () => sightsPanel(d)),
+    lazyDetails("Wanderwege in der Umgebung", () => hikingPanel(d)),
+    lazyDetails("Bibliotheken (WLAN, Regentag)", () => libraryPanel(d)),
     lazyDetails("Infos am Bahnhof (WC, Schließfächer, Supermarkt)", () => stationPanel(d)));
   const old = resultBox.querySelector(".card.daydest");
   box.classList.add("daydest");
@@ -369,6 +371,8 @@ function showTour(tour) {
         el("div", { class: "chips" }, weatherChip(o, d.date)),
         lazyDetails(`Unterkünfte bis 50 € um ${o.name}`, () => lodgingPanel(o)),
         lazyDetails("Infos am Bahnhof", () => stationPanel(o)),
+        lazyDetails("Wanderwege in der Umgebung", () => hikingPanel(o)),
+        lazyDetails("Bibliotheken (WLAN, Regentag)", () => libraryPanel(o)),
         d.nights > 1 ? lazyDetails("Ausflugsziele für den freien Tag", () => sightsPanel(o)) : null);
       if (d.alternatives?.length > 1) {
         const sel = el("select", {}, el("option", { value: "" }, "Lieber woanders übernachten …"),

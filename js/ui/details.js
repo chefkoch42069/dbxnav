@@ -3,9 +3,9 @@ import { el, clear, badgeFor, spinnerLine, errorLine, extLink, osmLink, toast } 
 import { fmtTime, fmtDuration, diffSec } from "../lib/time.js";
 import { checkLeg, lineName } from "../planner/dticket.js";
 import { estimatePrice, ratingOrder, TYPE_LABEL } from "../planner/accommodation.js";
-import { accommodations, stationInfo, stationCategory, sights, sightCategory } from "../api/overpass.js";
+import { accommodations, stationInfo, stationCategory, sights, sightCategory, hikingRoutes, waymarkedLink, libraries } from "../api/overpass.js";
 import { forecast } from "../api/weather.js";
-import { map, groups, popupContent, focusOn, trackLabel } from "./map.js";
+import { map, groups, popupContent, focusOn, trackLabel, showOverlay } from "./map.js";
 import { addFavorite } from "../state.js";
 import { APP } from "../config.js";
 
@@ -143,6 +143,57 @@ export function sightsPanel(place) {
           el("button", { class: "btn small", onclick: () => focusOn(it.lat, it.lon, 15) }, "Karte")));
       }
       clear(box).append(items.length ? ul : el("p", { class: "muted" }, "Keine Burgen, Seen oder Aussichtspunkte in 5 km gefunden."));
+    })
+    .catch((e) => clear(box).append(errorLine(e)));
+  return box;
+}
+
+const esc = (s) => String(s).replace(/[<>&"]/g, "");
+
+/** Markierte Wanderwege in der Umgebung (OSM-Routen), Ebene „Wanderwege“ wird eingeschaltet. */
+export function hikingPanel(place) {
+  const box = el("div", {}, spinnerLine("Suche Wanderwege …"));
+  showOverlay("Wanderwege");
+  hikingRoutes(place)
+    .then((items) => {
+      const ul = el("ul", { class: "list" });
+      for (const it of items.slice(0, 25)) {
+        const i = it.info;
+        ul.append(el("li", {},
+          el("div", { class: "grow" }, el("strong", {}, `🥾 ${i.name}`),
+            el("span", { class: "muted small" }, [i.label, i.km ? `${i.km} km` : null, i.roundtrip ? "Rundweg" : null, `${it.dist.toFixed(1)} km entfernt`].filter(Boolean).join(" · ")),
+            i.ends ? el("span", { class: "muted small" }, i.ends) : null),
+          extLink(waymarkedLink(it.id), "Verlauf")));
+      }
+      clear(box).append(
+        items.length ? ul : el("p", { class: "muted" }, "Keine markierten Wanderwege in 6 km gefunden."),
+        el("p", { class: "muted small" }, "Auf der Karte ist jetzt die Ebene „Wanderwege“ an. „Verlauf“ öffnet Höhenprofil und Strecke bei Waymarked Trails."),
+        el("button", { class: "btn small", onclick: () => { showOverlay("Wanderwege"); focusOn(place.lat, place.lon, 13); } }, "Wanderwege auf der Karte"));
+    })
+    .catch((e) => clear(box).append(errorLine(e)));
+  return box;
+}
+
+/** Bibliotheken in der Nähe: Öffnungszeiten, WLAN – gut für Regentage und zum Aufladen. */
+export function libraryPanel(place) {
+  const box = el("div", {}, spinnerLine("Suche Bibliotheken …"));
+  libraries(place)
+    .then((items) => {
+      groups.places.clearLayers();
+      const ul = el("ul", { class: "list" });
+      for (const it of items.slice(0, 20)) {
+        const i = it.info;
+        const m = L.marker([it.lat, it.lon], { icon: L.divIcon({ className: "", html: '<div style="font-size:18px">📚</div>', iconSize: [20, 20] }) })
+          .bindPopup(`<strong>${esc(i.name)}</strong>${i.address ? "<br>" + esc(i.address) : ""}${i.hours ? "<br>🕒 " + esc(i.hours) : ""}${i.wifi ? "<br>📶 WLAN" : ""}`);
+        groups.places.addLayer(m);
+        ul.append(el("li", {},
+          el("div", { class: "grow" }, el("strong", {}, `📚 ${i.name}`),
+            el("span", { class: "muted small" }, [i.type, `${it.dist.toFixed(1)} km`, i.wifi ? "📶 WLAN" : null].filter(Boolean).join(" · ")),
+            i.hours ? el("span", { class: "muted small" }, `🕒 ${i.hours}`) : el("span", { class: "muted small" }, "Öffnungszeiten nicht in OSM")),
+          i.website ? extLink(i.website, "Web") : null,
+          el("button", { class: "btn small", onclick: () => { focusOn(it.lat, it.lon, 16); m.openPopup(); } }, "Karte")));
+      }
+      clear(box).append(items.length ? ul : el("p", { class: "muted" }, "Keine Bibliothek in 3 km gefunden."), el("p", { class: "muted small" }, "Daten © OpenStreetMap-Mitwirkende."));
     })
     .catch((e) => clear(box).append(errorLine(e)));
   return box;

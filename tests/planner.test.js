@@ -8,6 +8,7 @@ import { combineReachability } from "../js/planner/daytrip.js";
 import { suggestRoundtrip } from "../js/planner/roundtrip.js";
 import { estimatePrice } from "../js/planner/accommodation.js";
 import { prepareDepartures, groupOf } from "../js/planner/departures.js";
+import { hikingInfo, libraryInfo, waymarkedLink } from "../js/api/overpass.js";
 
 const A = P("Hamburg Hbf", 53.55, 10.0), B = P("Uelzen", 52.97, 10.55), C = P("Hannover Hbf", 52.38, 9.74),
   D = P("Göttingen", 51.54, 9.93), E = P("Würzburg Hbf", 49.8, 9.94);
@@ -151,4 +152,21 @@ test("Abfahrtstafel: Fernverkehr ausblenden, Dubletten entfernen, sortieren", ()
   assert.equal(prepareDepartures(list, { showLongDistance: true }).length, 3);
   assert.equal(groupOf("SUBURBAN"), "sbahn");
   assert.equal(groupOf("SUBWAY"), "ubahn");
+});
+
+test("Wanderwege: Netz, Länge, Link", () => {
+  const i = hikingInfo({ name: "Rennsteig", network: "nwn", distance: "169,3", from: "Hörschel", to: "Blankenstein" });
+  assert.equal(i.label, "National");
+  assert.equal(i.km, 169.3);
+  assert.equal(i.ends, "Hörschel → Blankenstein");
+  assert.equal(hikingInfo({ ref: "X1" }).name, "X1");
+  assert.equal(waymarkedLink("relation/12345"), "https://hiking.waymarkedtrails.org/#route?id=12345");
+});
+
+test("Bibliotheken: WLAN und Art erkennen", () => {
+  const i = libraryInfo({ name: "Stadtbibliothek Erfurt", internet_access: "wlan", opening_hours: "Mo-Fr 10:00-19:00" });
+  assert.equal(i.wifi, true);
+  assert.equal(i.type, "Bibliothek");
+  assert.equal(libraryInfo({ name: "Universitätsbibliothek" }).type, "Hochschulbibliothek");
+  assert.equal(libraryInfo({}).wifi, false);
 });

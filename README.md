@@ -35,6 +35,8 @@ Für alle Reisearten:
 - **Warnung „letzte Verbindung“**: pro Etappe, bis wann man spätestens losfahren muss (Nachtzüge gibt es mit dem D-Ticket nicht).
 - **D-Ticket-Prüfung** jedes Abschnitts: ICE/IC/Fernbus raus, Fähren und Rufbusse mit Hinweis, IC-Ausnahmestrecken aus `js/config.js`.
 - **Unterkünfte aus OSM** mit grober Preiseinschätzung (Hostel/Camping/Budget-Kette = wahrscheinlich ≤ 50 €, 4★ = eher teurer, explizite Preis-Tags werden ausgewertet).
+- **Wanderwege**: markierte Routen um jedes Ziel (international bis lokal, Länge, Rundweg) mit Link zu Höhenprofil/Verlauf bei Waymarked Trails, dazu die Kartenebene „Wanderwege“.
+- **Bibliotheken** in der Nähe: Öffnungszeiten und WLAN, gut für Regentage und zum Handy-Laden.
 - **Wetter** am Etappenort (DWD-Daten über Bright Sky) und **Regenradar** des DWD als Kartenebene.
 - Links zum Gegenprüfen bei **bahn.de/DB Navigator** und zu **direkt.bahn.guru** („Wohin komme ich direkt?“).
 
@@ -58,6 +60,7 @@ und Unterkünfte an den Übernachtungsorten.
 | OSM Deutschland (Grundkarte) | FOSSGIS e.V. | Für den Eigengebrauch ok. **Vor einer Weitergabe beim Betreiber nachfragen** oder eine andere Quelle nehmen. Wird nicht vorgeladen. |
 | ÖPNVKarte (Grundkarte) | memomaps, CC BY-SA 2.0 | Daten werden nicht regelmäßig aktualisiert. |
 | OpenRailwayMap (zuschaltbar) | CC BY-SA 2.0 | Strecken, Elektrifizierung |
+| Wanderwege (zuschaltbar) | Waymarked Trails, CC BY-SA 3.0 | |
 | Regenradar (zuschaltbar) | DWD WMS `dwd:Niederschlagsradar` | |
 
 Bewusst weggelassen: OpenInfraMap und Osiris (kein Nutzen fürs Bahnreisen, Osiris ohne Lizenz).

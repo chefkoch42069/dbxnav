@@ -71,6 +71,52 @@ out center tags 80;`;
   return elements(await query(ql), center);
 }
 
+// ---- Wanderwege ----
+const NETWORK = { iwn: ["International", 0], nwn: ["National", 1], rwn: ["Regional", 2], lwn: ["Lokal", 3] };
+
+export function hikingInfo(tags) {
+  const [label, rank] = NETWORK[tags.network] || ["Wanderweg", 4];
+  const km = parseFloat(String(tags.distance || "").replace(",", "."));
+  return {
+    label, rank,
+    name: tags.name || tags.ref || "Wanderweg",
+    km: Number.isFinite(km) ? km : null,
+    ends: tags.from && tags.to ? `${tags.from} → ${tags.to}` : null,
+    roundtrip: tags.roundtrip === "yes",
+  };
+}
+
+export async function hikingRoutes(center, radiusM = 6000) {
+  const ql = `[out:json][timeout:30];
+relation["type"="route"]["route"~"^(hiking|foot)$"](around:${radiusM},${center.lat},${center.lon});
+out tags center 80;`;
+  return elements(await query(ql), center)
+    .map((e) => ({ ...e, info: hikingInfo(e.tags) }))
+    .sort((a, b) => a.info.rank - b.info.rank || a.dist - b.dist);
+}
+
+export const waymarkedLink = (id) => `https://hiking.waymarkedtrails.org/#route?id=${String(id).replace(/^relation\//, "")}`;
+
+// ---- Bibliotheken ----
+export function libraryInfo(tags) {
+  const wifi = /^(wlan|yes|wifi|public)$/i.test(tags.internet_access || "") || tags["internet_access:fee"] === "no";
+  return {
+    name: tags.name || "Bibliothek",
+    hours: tags.opening_hours || null,
+    wifi,
+    type: /univ|hochschul/i.test(`${tags.name} ${tags.operator || ""}`) || tags.library === "academic" ? "Hochschulbibliothek" : "Bibliothek",
+    website: tags.website || tags["contact:website"] || null,
+    address: tags["addr:street"] ? `${tags["addr:street"]} ${tags["addr:housenumber"] || ""}`.trim() : null,
+  };
+}
+
+export async function libraries(center, radiusM = 3000) {
+  const ql = `[out:json][timeout:25];
+nwr["amenity"="library"](around:${radiusM},${center.lat},${center.lon});
+out center tags 60;`;
+  return elements(await query(ql), center).map((e) => ({ ...e, info: libraryInfo(e.tags) }));
+}
+
 export function sightCategory(tags) {
   if (tags.historic === "castle" || tags.historic === "palace" || tags.historic === "fort") return "Burg/Schloss";
   if (tags.historic === "ruins") return "Ruine";

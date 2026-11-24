@@ -64,6 +64,16 @@ export const OVERLAY_LAYERS = {
   },
 };
 
+// Markierte Wanderwege (Waymarked Trails, Daten aus OSM).
+OVERLAY_LAYERS.Wanderwege = {
+  url: "https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png",
+  options: {
+    maxZoom: 18,
+    opacity: 0.8,
+    attribution: 'Wanderwege: <a href="https://hiking.waymarkedtrails.org/">Waymarked Trails</a> (CC BY-SA 3.0), Daten &copy; OpenStreetMap-Mitwirkende',
+  },
+};
+
 export const RAIN_RADAR = {
   // Niederschlagsradar des DWD als WMS (Open Data, Quellenvermerk „Deutscher Wetterdienst“).
   url: "https://maps.dwd.de/geoserver/dwd/wms",

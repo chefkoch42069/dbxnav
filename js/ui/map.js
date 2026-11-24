@@ -8,6 +8,12 @@ export let map;
 export const groups = {};
 const bases = {};
 export let currentBase = null;
+let overlays = {};
+
+/** Kartenebene per Name einschalten (z. B. „Wanderwege“). */
+export function showOverlay(name) {
+  if (overlays[name] && !map.hasLayer(overlays[name])) overlays[name].addTo(map);
+}
 
 const MODE_COLORS = { zug: "#b3261e", sbahn: "#008d4f", ubahn: "#1b4f9c", tram: "#c2185b", bus: "#6a3d9a", faehre: "#00809d", fern: "#6b7280" };
 export const DAY_COLORS = ["#0f5132", "#2f6db3", "#b26a00", "#8e24aa", "#c62828", "#00838f", "#5d4037", "#ad1457"];
@@ -19,7 +25,7 @@ export function initMap() {
   bases[wanted].addTo(map);
   currentBase = wanted;
 
-  const overlays = {};
+  overlays = {};
   for (const [name, cfg] of Object.entries(OVERLAY_LAYERS)) overlays[name] = L.tileLayer(cfg.url, cfg.options);
   overlays["Regenradar (DWD)"] = L.tileLayer.wms(RAIN_RADAR.url, RAIN_RADAR.options);
 
