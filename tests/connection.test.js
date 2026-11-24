@@ -20,6 +20,7 @@ test("Zusammenfassung: Abfahrt/Ankunft ohne Fußweg, Umstiege, Linien, D-Ticket"
   assert.equal(s.arr, "2026-11-25T09:00:00Z");
   assert.equal(s.transfers, 1);
   assert.equal(s.walkMin, 10);
+  assert.equal(s.duration, 2 * 3600); // 07:00–09:00, ohne die Fußwege davor
   assert.deepEqual(s.lines.map((l) => l.name), ["RE16", "S3"]);
   assert.equal(s.ok, true);
   assert.equal(summarize(itin([leg("HIGHSPEED_RAIL", EF, LEJ, "07:00", "07:45", { displayName: "ICE 1" })])).ok, false);

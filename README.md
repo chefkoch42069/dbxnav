@@ -76,6 +76,8 @@ Für alle Reisearten:
 - Optional ICE/IC zum Vergleich (ausgegraut, z. B. „wärst ca. 1 h 13 min schneller“)
 - Rückfahrt mit einem Klick, letzte Verbindung des Tages, bei DB gegenprüfen, „Bin ich gefahren“ (Sammler + Tagebuch)
 - Letzte Suchen, Sprung aus Abfahrtstafel („Verbindung von hier“) und Merkliste („Hin“)
+- **Mit Zwischenstopps**: beliebig viele Stopps mit eigener Aufenthaltszeit (15 min bis 6 h). Die App plant Etappe für Etappe, jede startet erst nach dem Aufenthalt. Pro Stopp gibt es Ideen für die Wartezeit (Sehenswertes, günstig essen, WLAN, Toiletten).
+- **Einkaufen**: Zuhause, Einkaufsort, Datum, gewünschte Einkaufszeit (oder bis Ladenschluss). Die App berechnet die späteste Abfahrt, mit der man zur Ladenöffnung da ist, und die beste Rückfahrt danach, mit Warnung vor der letzten Verbindung. Öffnungszeiten: Standard Mo–Sa 10–20 Uhr oder aus einem Einkaufszentrum in OSM (`opening_hours` wird für den gewählten Tag ausgewertet). Sonntag und geschlossene Tage werden abgefangen.
 - Fahrradmitnahme fehlt bewusst: Die deutschen Fahrplandaten enthalten sie meist nicht, die Suche würde fälschlich „keine Verbindung“ melden.
 
 **International (Interrail Global Pass)**:
