@@ -1,6 +1,9 @@
 // Reiter „International“: Interrail Global Pass – wo er gilt, wohin man in X Stunden kommt,
 // und Touren mit derselben Planung wie beim D-Ticket (Etappen, letzte Verbindung, Unterkünfte).
-import { el, clear, busy, toast, spinnerLine, errorLine, extLink } from "./dom.js";
+import { el, clear, busy, toast, spinnerLine, errorLine, extLink, durationSelect, optionSelect, DURATIONS, plain } from "./dom.js";
+import { stopList } from "./stopList.js";
+import { timeScale } from "./timeScale.js";
+import { cityName } from "../planner/booking.js";
 import { placeInput } from "./placeInput.js";
 import { map, groups, fitPoints, pinIcon, popupContent } from "./map.js";
 import { renderTour, slimDays } from "./tourView.js";
@@ -11,7 +14,7 @@ import { planTour } from "../planner/tour.js";
 import { makeInterrailRules, travelDays, recommendPass, homeViolations } from "../planner/interrail.js";
 import { INTERRAIL } from "../config.js";
 import { makeLocator, distanceKm } from "../lib/geo.js";
-import { berlinToISO, todayBerlin, addDays, fmtDuration, diffSec } from "../lib/time.js";
+import { berlinToISO, todayBerlin, addDays, fmtDuration, fmtMinutes, diffSec } from "../lib/time.js";
 import { uid, load, save } from "../lib/store.js";
 import { loadCountries } from "./statesData.js";
 
@@ -19,8 +22,7 @@ const api = { plan };
 let locate = null; // (lat, lon) → ISO-Code
 let countryNames = {};
 let countryLayer = null;
-let resultBox, stopsBox;
-let stops = [];
+let resultBox, stops;
 const opts = load("interrail", { home: INTERRAIL.defaultHome, allowNight: true, avoidReservation: false, maxHours: 8 });
 
 async function ensureCountries() {
@@ -74,8 +76,8 @@ export function initInterrailTab(root) {
   };
 
   // --- Wohin komme ich?
-  const hours = el("select", {}, [3, 4, 5, 6, 8].map((h) => el("option", { value: h, selected: h === 6 }, `${h} h`)));
-  const transfers = el("select", {}, [[0, "direkt"], [1, "max. 1 Umstieg"], [2, "max. 2 Umstiege"]].map(([v, t]) => el("option", { value: v, selected: v === 1 }, t)));
+  const hours = durationSelect(DURATIONS.reach, 360);
+  const transfers = optionSelect([[0, "direkt"], [1, "max. 1 Umstieg"], [2, "max. 2 Umstiege"]], 1);
   const reachBtn = el("button", { class: "btn primary block" }, "Erreichbare Ziele zeigen");
   const reachInfo = el("div");
   reachBtn.onclick = () => {
@@ -85,29 +87,31 @@ export function initInterrailTab(root) {
   };
 
   // --- Tour
-  stopsBox = el("ul", { class: "list" });
-  const add = placeInput({ label: "Ziel hinzufügen", id: "ir-add", placeholder: "Stadt oder Bahnhof in Europa", onSelect: (p) => { addStop(p); add.value = null; } });
+  stops = stopList({
+    field: "nights", initial: 1, empty: "Noch keine Ziele. Unten eintippen oder in der Karte ein erreichbares Ziel antippen.",
+    makeSelect: (v, onChange) => optionSelect([1, 2, 3, 4, 5].map((n) => [n, `${n} N.`]), v, { onchange: (e) => onChange(+e.target.value) }),
+  });
+  const add = placeInput({ label: "Ziel hinzufügen", id: "ir-add", placeholder: "Stadt oder Bahnhof in Europa", onSelect: (p) => { stops.add(p); add.value = null; } });
   const round = el("input", { type: "checkbox", checked: true });
   const date = el("input", { type: "date", value: addDays(todayBerlin(), 1) });
   const dep = el("input", { type: "time", value: "08:00" });
-  const maxH = el("select", {}, [4, 5, 6, 7, 8, 10, 12].map((h) => el("option", { value: h, selected: h === opts.maxHours }, `${h} h`)));
+  const maxH = durationSelect(DURATIONS.day, Math.round(opts.maxHours * 60));
   const night = el("input", { type: "checkbox", checked: opts.allowNight });
   const noRes = el("input", { type: "checkbox", checked: opts.avoidReservation });
   const go = el("button", { class: "btn primary block" }, "Interrail-Tour planen");
   resultBox = el("div");
-  renderStops();
-
   go.onclick = async () => {
     const s = start.value;
     if (!s) return toast("Bitte einen Start wählen.");
-    if (!stops.length) return toast("Bitte mindestens ein Ziel hinzufügen.");
-    Object.assign(opts, { allowNight: night.checked, avoidReservation: noRes.checked, maxHours: +maxH.value });
+    const list = stops.copy();
+    if (!list.length) return toast("Bitte mindestens ein Ziel hinzufügen.");
+    Object.assign(opts, { allowNight: night.checked, avoidReservation: noRes.checked, maxHours: +maxH.value / 60 });
     save("interrail", opts);
-    const params = { start: s, stops: stops.map((x) => ({ ...x })), roundtrip: round.checked, startDate: date.value, departTime: dep.value, maxHours: +maxH.value };
-    busy(go, () => runTour({ name: `Interrail: ${stops.map((x) => x.place.name.replace(/ (Hbf|Hauptbahnhof|Centrale|Central)$/i, "")).join(" – ")}`, params }));
+    const params = { start: s, stops: list, roundtrip: round.checked, startDate: date.value, departTime: dep.value, maxHours: opts.maxHours };
+    busy(go, () => runTour({ name: `Interrail: ${list.map((x) => cityName(x.place.name)).join(" – ")}`, params }));
   };
 
-  nav.interrail.addStop = (p) => { addStop(p); };
+  nav.interrail.addStop = (p) => stops.add(p);
   nav.interrail.openTour = async (t) => { await ensureCountries(); nav.switchTab("intl"); show(t); };
 
   root.append(
@@ -120,7 +124,7 @@ export function initInterrailTab(root) {
     el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Zeit ab 7 Uhr"), hours), el("div", { class: "field" }, el("label", {}, "Umstiege"), transfers)),
     reachBtn, reachInfo,
     el("h3", {}, "Tour planen"),
-    stopsBox, add.node,
+    stops.node, add.node,
     el("label", { class: "check" }, round, "Rundreise (am Ende zurück zum Start)"),
     el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Start am"), date), el("div", { class: "field" }, el("label", {}, "Abfahrt"), dep), el("div", { class: "field" }, el("label", {}, "Max./Tag"), maxH)),
     el("label", { class: "check small" }, night, "Nachtzüge erlauben (sparen eine Übernachtung)"),
@@ -137,61 +141,64 @@ export function initInterrailTab(root) {
         el("li", {}, "Länderliste, Preise und Regeln ändern sich – aktuell auf ", extLink("https://www.interrail.eu/de", "interrail.eu"), ". ", INTERRAIL.checked))));
 }
 
-function addStop(p) {
-  stops.push({ place: p, nights: 1 });
-  renderStops();
-  toast(`${p.name} hinzugefügt`);
-}
-
-function renderStops() {
-  stopsBox.replaceChildren(...stops.map((s, i) =>
-    el("li", {},
-      el("div", { class: "grow" }, el("strong", {}, `${i + 1}. ${s.place.name}`)),
-      el("select", { "aria-label": "Nächte", onchange: (e) => (s.nights = +e.target.value) }, [1, 2, 3, 4, 5].map((n) => el("option", { value: n, selected: n === s.nights }, `${n} N.`))),
-      el("button", { class: "btn small", title: "nach oben", disabled: i === 0, onclick: () => { [stops[i - 1], stops[i]] = [stops[i], stops[i - 1]]; renderStops(); } }, "↑"),
-      el("button", { class: "btn small", title: "entfernen", onclick: () => { stops.splice(i, 1); renderStops(); } }, "✕"))));
-  if (!stops.length) stopsBox.append(el("li", { class: "muted small" }, "Noch keine Ziele. Unten eintippen oder in der Karte „Wohin komme ich?“ antippen."));
-}
-
-const colorForHours = (h) => (h <= 2 ? "#1e7b45" : h <= 3 ? "#7cb342" : h <= 4 ? "#f2a900" : h <= 6 ? "#ef6c00" : "#c62828");
 
 /** Erreichbarkeit mit Fernzügen; Bahnhöfe mit ähnlicher Lage (verschiedene Datenquellen) zusammenfassen. */
-async function runReach(s, h, maxTransfers, info) {
+async function runReach(s, maxMin, maxTransfers, info) {
   await ensureCountries();
   clear(info).append(spinnerLine("Frage Transitous ab (Fernverkehr Europa) …"));
   groups.daytrip.clearLayers();
   const res = await oneToAll(s, berlinToISO(addDays(todayBerlin(), 1), "07:00"),
-    { maxMinutes: h * 60, maxTransfers, modes: ["HIGHSPEED_RAIL", "LONG_DISTANCE"] });
+    { maxMinutes: maxMin, maxTransfers, modes: ["HIGHSPEED_RAIL", "LONG_DISTANCE"] });
   const r = rules();
+  const scale = timeScale(maxMin);
+  const minKm = maxMin <= 60 ? 5 : 15;
+  // Bahnhöfe mit fast gleicher Lage (mehrere Datenquellen) zusammenfassen – über ein Raster
+  // statt jeden mit jedem zu vergleichen (bei ~90.000 Einträgen sonst spürbar langsam).
+  const CELL = 0.02;
+  const grid = new Map();
   const best = [];
+  const cellOf = (p) => [Math.floor(p.lat / CELL), Math.floor(p.lon / (CELL * 1.5))];
+  const findNear = (p) => {
+    const [cy, cx] = cellOf(p);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      for (const b of grid.get(`${cy + dy},${cx + dx}`) || []) if (distanceKm(b, p) < 2) return b;
+    }
+    return null;
+  };
   for (const x of res.all || []) {
     const p = x.place;
     if (!(p.modes || []).some((m) => m === "HIGHSPEED_RAIL" || m === "LONG_DISTANCE")) continue;
-    if (distanceKm(s, p) < 15) continue;
-    const near = best.find((b) => distanceKm(b, p) < 2);
+    const near = findNear(p);
     if (near) {
       if ((p.importance || 0) > near.importance) { near.name = p.name; near.importance = p.importance || 0; }
       near.minutes = Math.min(near.minutes, x.duration);
       continue;
     }
-    best.push({ name: p.name, lat: p.lat, lon: p.lon, stopId: p.stopId, importance: p.importance || 0, minutes: x.duration, k: x.k });
+    if (distanceKm(s, p) < minKm) continue;
+    const item = { name: p.name, lat: p.lat, lon: p.lon, stopId: p.stopId, importance: p.importance || 0, minutes: x.duration };
+    best.push(item);
+    const key = cellOf(p).join(",");
+    grid.has(key) ? grid.get(key).push(item) : grid.set(key, [item]);
   }
-  const shown = best.filter((b) => INTERRAIL.countries.includes(r.countryOf(b))).sort((a, b) => b.importance - a.importance).slice(0, 350);
+  const shown = best.map((b) => ({ ...b, country: r.countryOf(b) })).filter((b) => INTERRAIL.countries.includes(b.country))
+    .sort((a, b) => b.importance - a.importance).slice(0, 350);
   for (const d of shown) {
-    const c = r.countryOf(d);
-    L.circleMarker([d.lat, d.lon], { radius: 4 + Math.min(6, d.importance * 300), color: "#fff", weight: 1.5, fillColor: colorForHours(d.minutes / 60), fillOpacity: 0.95 })
-      .bindTooltip(`${d.name} · ${fmtDuration(d.minutes * 60)}`)
-      .bindPopup(() => popupContent([el("strong", {}, d.name), el("br"), `${countryNames[c] || c} · ca. ${fmtDuration(d.minutes * 60)}`, el("br"),
-        el("button", { class: "btn small primary", onclick: () => { addStop({ name: d.name, lat: d.lat, lon: d.lon, stopId: d.stopId }); map.closePopup(); } }, "+ Zur Tour")]))
+    L.circleMarker([d.lat, d.lon], { radius: 4 + Math.min(6, d.importance * 300), color: "#fff", weight: 1.5, fillColor: scale.color(d.minutes), fillOpacity: 0.95 })
+      .bindTooltip(`${plain(d.name)} · ${fmtDuration(d.minutes * 60)}`)
+      .bindPopup(() => popupContent([el("strong", {}, d.name), el("br"), `${countryNames[d.country] || d.country} · ca. ${fmtDuration(d.minutes * 60)}`, el("br"),
+        el("button", { class: "btn small primary", onclick: () => { stops.add({ name: d.name, lat: d.lat, lon: d.lon, stopId: d.stopId }); map.closePopup(); } }, "+ Zur Tour")]))
       .addTo(groups.daytrip);
   }
   L.marker([s.lat, s.lon], { icon: pinIcon("⌂") }).addTo(groups.daytrip);
-  fitPoints([[s.lat, s.lon], ...shown.map((d) => [d.lat, d.lon])], 7);
-  const byCountry = {};
-  for (const d of shown) { const c = r.countryOf(d); byCountry[c] = (byCountry[c] || 0) + 1; }
+  fitPoints([[s.lat, s.lon], ...shown.map((d) => [d.lat, d.lon])], 9);
+  const nCountries = new Set(shown.map((d) => d.country)).size;
+  const until = 7 * 60 + maxMin;
+  const untilText = `${Math.floor(until / 60)}:${String(until % 60).padStart(2, "0")} Uhr`;
   clear(info).append(
-    el("p", { class: "small" }, `${shown.length} Fernbahnhöfe in ${Object.keys(byCountry).length} Ländern – Ankunft bis spätestens ${7 + h} Uhr bei Abfahrt ab 7 Uhr morgen (Wartezeit auf den ersten Zug zählt mit).`),
-    el("div", { class: "legend small" }, ...[[2, "≤ 2 h"], [3, "≤ 3 h"], [4, "≤ 4 h"], [6, "≤ 6 h"], [9, "länger"]].map(([x, t]) => el("span", { style: { marginRight: "8px" } }, el("i", { style: { background: colorForHours(x) } }), t))),
+    el("p", { class: "small" }, shown.length
+      ? `${shown.length} Fernbahnhöfe in ${nCountries} ${nCountries === 1 ? "Land" : "Ländern"} – Ankunft bis spätestens ${untilText} bei Abfahrt ab 7 Uhr morgen (Wartezeit auf den ersten Zug zählt mit).`
+      : `In ${fmtMinutes(maxMin)} ab 7 Uhr ist kein Fernbahnhof erreichbar – mehr Zeit oder mehr Umstiege wählen.`),
+    shown.length ? scale.legend() : null,
     el("p", { class: "muted small" }, "Punkt antippen → „+ Zur Tour“. Nur Fernzüge; Regionalzüge erweitern die Reichweite noch."));
 }
 

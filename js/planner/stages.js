@@ -3,7 +3,7 @@ import { decodePolyline, encodePolyline } from "../lib/polyline.js";
 import { nearestIndex } from "../lib/geo.js";
 import { diffSec } from "../lib/time.js";
 
-const isTransit = (l) => !["WALK", "BIKE", "CAR", "RENTAL"].includes(l.mode);
+import { isRide as isTransit } from "../lib/legs.js";
 
 /**
  * Mögliche Übernachtungsorte innerhalb von maxSec ab Reisebeginn.

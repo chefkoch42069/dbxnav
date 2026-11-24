@@ -1,6 +1,6 @@
 // Reiter „Sammler“: Bundesländer und gefahrene Strecken, als Karte mit eingefärbten Linien.
 import { el, clear } from "./dom.js";
-import { groups, map, focusOn } from "./map.js";
+import { groups, map, focusOn, MODE_COLORS } from "./map.js";
 import { state, onChange, removeById } from "../state.js";
 import { STATES } from "../config.js";
 import { visitedStates, setManualState, legCoords } from "../collector.js";
@@ -8,7 +8,6 @@ import { loadStates } from "./statesData.js";
 import { nav } from "./nav.js";
 import { groupOf } from "../planner/departures.js";
 
-const COLORS = { zug: "#b3261e", sbahn: "#008d4f", ubahn: "#1b4f9c", tram: "#c2185b", bus: "#6a3d9a", faehre: "#00809d", fern: "#6b7280" };
 let root;
 
 export function initCollectTab(container) {
@@ -28,7 +27,7 @@ async function render() {
     interactive: true,
   }).addTo(groups.collector);
   for (const l of state.collector.legs) {
-    L.polyline(legCoords(l), { color: COLORS[groupOf(l.mode)], weight: 4, opacity: 0.9 }).bindTooltip(`${l.line}: ${l.from} → ${l.to} (${l.date})`).addTo(groups.collector);
+    L.polyline(legCoords(l), { color: MODE_COLORS[groupOf(l.mode)], weight: 4, opacity: 0.9 }).bindTooltip(`${l.line}: ${l.from} → ${l.to} (${l.date})`).addTo(groups.collector);
   }
 
   const n = all.size;

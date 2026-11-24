@@ -1,4 +1,5 @@
 // Wanderwege: Gehzeit, Höhenmeter und Wegmarkierung aus OSM-Tags lesbar machen.
+import { fmtMinutes } from "../lib/time.js";
 
 /** „450“, „450 m“, „1.200 m“, „1,2 km“ → Meter (oder null). */
 export function parseMeters(v) {
@@ -23,9 +24,7 @@ export function walkHours(km, ascent = 0, descent = 0) {
 
 export function fmtHours(h) {
   if (h == null) return null;
-  const total = Math.round(h * 4) * 15; // auf Viertelstunden
-  const hh = Math.floor(total / 60), mm = total % 60;
-  return hh ? (mm ? `${hh}:${String(mm).padStart(2, "0")} h` : `${hh} h`) : `${mm} min`;
+  return fmtMinutes(Math.round(h * 4) * 15); // auf Viertelstunden, gleiche Schreibweise wie überall
 }
 
 const COLORS = { red: "rot", blue: "blau", yellow: "gelb", green: "grün", white: "weiß", black: "schwarz", orange: "orange", purple: "lila", brown: "braun", gray: "grau", grey: "grau" };

@@ -1,10 +1,9 @@
 // Einkaufsmodus: Wann losfahren, damit man zur Ladenöffnung da ist, und wann zurück?
 import { pickBest, pickLatest, checkItinerary } from "./dticket.js";
-import { berlinToISO } from "../lib/time.js";
+import { berlinToISO, addMinutes, diffMin } from "../lib/time.js";
 
 const DAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 const DEFAULT_HOURS = { open: "10:00", close: "20:00" }; // typische Innenstadt Mo–Sa
-const addMin = (iso, min) => new Date(Date.parse(iso) + min * 60000).toISOString();
 
 /** Wochentag-Index 0=Mo … 6=So für 'YYYY-MM-DD'. */
 export function weekdayIdx(date) {
@@ -66,16 +65,16 @@ export async function planShopping(p, api, check = checkItinerary) {
   const openIso = berlinToISO(date, open), closeIso = berlinToISO(date, close);
 
   // Hinfahrt: späteste Verbindung, die (mit Fußweg-Puffer) zur Öffnung ankommt
-  let outbound = pickLatest(await api.plan(home, dest, addMin(openIso, -bufferMin), { ...opts, arriveBy: true }), check);
+  let outbound = pickLatest(await api.plan(home, dest, addMinutes(openIso, -bufferMin), { ...opts, arriveBy: true }), check);
   if (!outbound) {
     outbound = pickBest(await api.plan(home, dest, berlinToISO(date, "05:00"), opts), check);
     if (outbound) notes.push("Zur Ladenöffnung ist keine Ankunft möglich – frühestmögliche Verbindung gewählt.");
   }
   if (!outbound) return { ok: false, notes: ["Keine Hinfahrt mit dem D-Ticket gefunden."] };
 
-  const arriveShops = addMin(outbound.endTime, bufferMin);
+  const arriveShops = addMinutes(outbound.endTime, bufferMin);
   const shopStart = Date.parse(arriveShops) > Date.parse(openIso) ? arriveShops : openIso;
-  let shopEnd = shopMinutes == null ? closeIso : addMin(shopStart, shopMinutes);
+  let shopEnd = shopMinutes == null ? closeIso : addMinutes(shopStart, shopMinutes);
   if (Date.parse(shopEnd) > Date.parse(closeIso)) {
     shopEnd = closeIso;
     if (shopMinutes != null) notes.push("Gewünschte Einkaufszeit passt nicht ganz – Läden schließen vorher.");
@@ -83,17 +82,17 @@ export async function planShopping(p, api, check = checkItinerary) {
 
   // Letzte Rückfahrt des Tages (für die Warnung) und beste Rückfahrt nach dem Einkaufen
   const latestReturn = pickLatest(await api.plan(dest, home, berlinToISO(date, "23:59"), { ...opts, arriveBy: true }), check);
-  let inbound = pickBest(await api.plan(dest, home, addMin(shopEnd, bufferMin), opts), check);
+  let inbound = pickBest(await api.plan(dest, home, addMinutes(shopEnd, bufferMin), opts), check);
   if (inbound && latestReturn && Date.parse(inbound.startTime) > Date.parse(latestReturn.startTime)) inbound = null;
   if (!inbound && latestReturn) {
     inbound = latestReturn;
-    shopEnd = addMin(latestReturn.startTime, -bufferMin);
+    shopEnd = addMinutes(latestReturn.startTime, -bufferMin);
     notes.push("Nach Ladenschluss fährt nichts mehr zurück – Einkaufszeit verkürzt bis zur letzten Verbindung.");
   }
   if (!inbound) return { ok: false, outbound, shopStart, notes: [...notes, "Keine Rückfahrt mit dem D-Ticket am selben Tag gefunden."] };
 
-  const shopMin = Math.max(0, Math.round((Date.parse(shopEnd) - Date.parse(shopStart)) / 60000));
-  const waitBeforeOpen = Math.max(0, Math.round((Date.parse(openIso) - Date.parse(arriveShops)) / 60000));
+  const shopMin = Math.max(0, diffMin(shopStart, shopEnd));
+  const waitBeforeOpen = Math.max(0, diffMin(arriveShops, openIso));
   if (waitBeforeOpen > 0) notes.push(`Du bist ${waitBeforeOpen} min vor Ladenöffnung da – Zeit für einen Kaffee.`);
   return { ok: true, outbound, inbound, latestReturn, shopStart, shopEnd, shopMin, openIso, closeIso, notes };
 }

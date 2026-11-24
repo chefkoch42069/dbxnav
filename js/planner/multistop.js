@@ -1,8 +1,8 @@
 // Reise mit mehreren Zwischenstopps: Etappe für Etappe planen,
 // an jedem Stopp die gewünschte Aufenthaltszeit einhalten.
 import { pickBest, checkItinerary } from "./dticket.js";
+import { addMinutes } from "../lib/time.js";
 
-const addMin = (iso, min) => new Date(Date.parse(iso) + min * 60000).toISOString();
 
 /** Ankunft des letzten Fahrzeugs (Fußweg am Ende zählt zur Ankunft, falls vorhanden). */
 const arrivalOf = (it) => it.endTime;
@@ -36,8 +36,8 @@ export async function planMultiStop({ from, to, stops = [], startIso, opts = {} 
     }
     const stay = i < stops.length ? stops[i].stayMin : 0;
     const arrive = arrivalOf(it);
-    segments.push({ from: a, to: b, departAt, itinerary: it, arrive, stayMin: stay, leaveAt: i < stops.length ? addMin(arrive, stay) : null });
-    departAt = addMin(arrive, stay);
+    segments.push({ from: a, to: b, departAt, itinerary: it, arrive, stayMin: stay, leaveAt: i < stops.length ? addMinutes(arrive, stay) : null });
+    departAt = addMinutes(arrive, stay);
   }
   return {
     segments,

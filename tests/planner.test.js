@@ -331,7 +331,7 @@ test("Wandern: Höhenmeter lesen, Gehzeit nach DIN 33466, Markierung", () => {
   assert.ok(Math.abs(walkHours(12, 600, 600) - 4.7) < 1e-9);
   assert.equal(walkHours(8), 2);
   assert.equal(walkHours(null), null);
-  assert.equal(fmtHours(4.7), "4:45 h");
+  assert.equal(fmtHours(4.7), "4 h 45 min");
   assert.equal(fmtHours(2), "2 h");
   assert.equal(fmtHours(0.5), "30 min");
   assert.equal(symbolText("red:white:red_bar"), "rot Balken auf weiß");

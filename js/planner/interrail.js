@@ -3,7 +3,7 @@
 import { INTERRAIL } from "../config.js";
 import { lineName } from "./dticket.js";
 
-const NON_TRANSIT = new Set(["WALK", "BIKE", "CAR", "RENTAL", "CAR_PARKING"]);
+import { OWN_WAY as NON_TRANSIT } from "../lib/legs.js";
 const CITY = new Set(["SUBWAY", "TRAM", "BUS", "METRO", "CABLE_CAR", "FUNICULAR", "AREAL_LIFT", "ODM", "FLEX"]);
 const NEVER = new Set(["COACH", "AIRPLANE"]);
 const FAST = new Set(["HIGHSPEED_RAIL", "LONG_DISTANCE"]);

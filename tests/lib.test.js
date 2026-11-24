@@ -46,7 +46,8 @@ test("Distanz, Vereinfachen, Kacheln", () => {
 });
 
 test("Ortsdaten-Kacheln: gleiche Kachel-Nummern wie tools/build_poi.py", async () => {
-  const { tilesForBounds, boundsAround } = await import("../js/api/localPoi.js");
+  const { tilesForBounds } = await import("../js/api/localPoi.js");
+  const { boundsAround } = await import("../js/lib/geo.js");
   // build_poi.py: (50.97244, 11.0375) → 2173/1371, (48.1373, 11.5754) → 2179/1421
   assert.deepEqual(tilesForBounds([50.97244, 11.0375, 50.97244, 11.0375], 12), ["2173/1371"]);
   assert.deepEqual(tilesForBounds([48.1373, 11.5754, 48.1373, 11.5754], 12), ["2179/1421"]);

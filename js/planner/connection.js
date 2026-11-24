@@ -2,6 +2,7 @@
 import { TRANSITOUS } from "../config.js";
 import { checkItinerary, lineName } from "./dticket.js";
 import { groupOf } from "./departures.js";
+import { rideLegs, isWalk } from "../lib/legs.js";
 
 const RAIL_ONLY = ["REGIONAL_RAIL", "REGIONAL_FAST_RAIL", "SUBURBAN"];
 const FERN = ["HIGHSPEED_RAIL", "LONG_DISTANCE"];
@@ -14,8 +15,8 @@ export function connectionModes({ railOnly = false, compare = false } = {}) {
 
 /** Kompakte Zusammenfassung einer Verbindung für die Ergebnisliste. */
 export function summarize(it, check = checkItinerary) {
-  const ride = it.legs.filter((l) => l.mode !== "WALK");
-  const walkSec = it.legs.filter((l) => l.mode === "WALK")
+  const ride = rideLegs(it);
+  const walkSec = it.legs.filter(isWalk)
     .reduce((s, l) => s + (l.duration ?? (Date.parse(l.endTime) - Date.parse(l.startTime)) / 1000), 0);
   const c = check(it);
   return {
@@ -36,7 +37,7 @@ export function summarize(it, check = checkItinerary) {
 
 /** Gleiche Verbindung erkennen (Seiten können sich überlappen). */
 export function connectionKey(it) {
-  return it.legs.filter((l) => l.mode !== "WALK").map((l) => `${l.tripId || lineName(l)}@${l.startTime}`).join("|") || `${it.startTime}-${it.endTime}`;
+  return rideLegs(it).map((l) => `${l.tripId || lineName(l)}@${l.startTime}`).join("|") || `${it.startTime}-${it.endTime}`;
 }
 
 /** Neue Seite einsortieren: ohne Doppelte, nach Abfahrt sortiert. */

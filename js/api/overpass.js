@@ -2,7 +2,7 @@
 // GET statt POST, damit der Service Worker Antworten für offline zwischenspeichern kann.
 import { OVERPASS_ENDPOINTS, OVERPASS_TIMEOUT_S } from "../config.js";
 import { getJSON } from "./http.js";
-import { distanceKm } from "../lib/geo.js";
+import { distanceKm, boundsAround } from "../lib/geo.js";
 import { localElements } from "./localPoi.js";
 import { parseMeters, walkHours, symbolText, linesKm } from "../planner/hiking.js";
 import { wayToPolygon } from "../planner/city.js";
@@ -191,10 +191,7 @@ out center tags 60;`;
 // ---- Homeless-Modus: kostenlos & billig ----
 /** Rechteck um einen Punkt: „süd,west,nord,ost“ für Overpass. */
 export function bboxAround(center, radiusM) {
-  const dLat = radiusM / 111320;
-  const dLon = radiusM / (111320 * Math.cos((center.lat * Math.PI) / 180));
-  const r = (v) => v.toFixed(5);
-  return `${r(center.lat - dLat)},${r(center.lon - dLon)},${r(center.lat + dLat)},${r(center.lon + dLon)}`;
+  return boundsAround(center, radiusM).map((v) => v.toFixed(5)).join(",");
 }
 
 export function budgetQuery(bbox) {
