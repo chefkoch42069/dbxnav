@@ -151,12 +151,17 @@ hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 .legend { background: var(--panel); color: var(--ink); padding: 6px 8px; border-radius: 6px; box-shadow: var(--shadow); font-size: 12px; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
 
-@media (max-width: 520px) {
-  .topbar { gap: 8px; padding: 6px 10px; flex-wrap: nowrap; }
-  .brand span:not(.logo) { display: none; }
-  .logo { width: 24px; height: 24px; }
-  .tabs { gap: 0; }
-  .tabs button { padding: 6px 7px; font-size: 13.5px; }
+.tabs .ico, .tabs .lbl-short { display: none; }
+
+/* Handy: Symbolleiste – Symbol oben, kurzer Name darunter, alle Reiter gleich breit */
+@media (max-width: 600px) {
+  .topbar { padding: 4px 4px 2px; gap: 0; flex-wrap: nowrap; }
+  .brand { display: none; }
+  .tabs { width: 100%; gap: 0; overflow: visible; }
+  .tabs button { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 0; border-radius: 8px; font-size: 10px; letter-spacing: -0.1px; line-height: 1.2; }
+  .tabs .ico { display: block; font-size: 18px; line-height: 1.1; }
+  .tabs .lbl-long { display: none; }
+  .tabs .lbl-short { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 details.branch { border-bottom: 1px solid var(--line, #ddd); }
 details.branch > summary { font-weight: 600; padding: 4px 0; }

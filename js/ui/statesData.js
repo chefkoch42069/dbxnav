@@ -1,9 +1,12 @@
-// Bundesländer-Umrisse (Natural Earth, gemeinfrei; vereinfacht).
+// Umrisse (Natural Earth, gemeinfrei; vereinfacht): Bundesländer und europäische Länder.
+const cache = {};
+function load(file) {
+  cache[file] ||= fetch(`data/${file}`).then((r) => r.json()).catch((e) => { delete cache[file]; throw e; });
+  return cache[file];
+}
 let data = null;
-let pending = null;
 export function loadStates() {
-  if (data) return Promise.resolve(data);
-  pending ||= fetch("data/bundeslaender.geojson").then((r) => r.json()).then((d) => (data = d));
-  return pending;
+  return load("bundeslaender.geojson").then((d) => (data = d));
 }
 export const statesData = () => data;
+export const loadCountries = () => load("europa.geojson");

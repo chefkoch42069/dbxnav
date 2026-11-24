@@ -37,7 +37,8 @@ export function initMap() {
   for (const [name, cfg] of Object.entries(OVERLAY_LAYERS)) overlays[name] = L.tileLayer(cfg.url, cfg.options);
   overlays["Regenradar (DWD)"] = L.tileLayer.wms(RAIN_RADAR.url, RAIN_RADAR.options);
 
-  for (const g of ["route", "places", "lodging", "daytrip", "collector", "trip", "infra"]) groups[g] = L.layerGroup();
+  for (const g of ["route", "places", "lodging", "daytrip", "collector", "trip", "countries", "infra"]) groups[g] = L.layerGroup();
+  groups.countries.addTo(map);
   for (const g of ["route", "places", "lodging", "daytrip", "trip", "infra"]) groups[g].addTo(map);
   overlays["Route"] = groups.route;
   overlays["Bahnhofs-Infos & Ausflugsziele"] = groups.places;
@@ -45,6 +46,7 @@ export function initMap() {
   overlays["Tagestrip-Ziele"] = groups.daytrip;
   overlays["Gefahrene Strecken"] = groups.collector;
   overlays["Fahrt (Abfahrtstafel)"] = groups.trip;
+  overlays["Interrail-Länder"] = groups.countries;
   overlays["Infrastruktur (YouTuber)"] = groups.infra;
 
   L.control.layers(bases, overlays, { collapsed: true }).addTo(map);
