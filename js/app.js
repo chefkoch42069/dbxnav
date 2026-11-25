@@ -11,6 +11,7 @@ import { initSavedTab } from "./ui/savedTab.js";
 import { initCityTab } from "./ui/cityTab.js";
 import { initYoutuberTab } from "./ui/youtuberTab.js";
 import { initTransitClick } from "./ui/transitClick.js";
+import { initDisplay } from "./ui/display.js";
 import { registerSW } from "./offline.js";
 import { loadStates } from "./ui/statesData.js";
 
@@ -38,6 +39,7 @@ tabs.forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)))
 const setMenu = (open) => { moreMenu.hidden = !open; moreBtn.setAttribute("aria-expanded", String(open)); };
 moreBtn.addEventListener("click", (e) => { e.stopPropagation(); setMenu(moreMenu.hidden); });
 menuItems.forEach((b) => b.addEventListener("click", () => { setMenu(false); switchTab(b.dataset.tab); }));
+initDisplay(moreMenu); // Hell / Nachtfahrplan / Sonnenmodus im selben Menü
 document.addEventListener("click", (e) => { if (!moreMenu.hidden && !e.target.closest(".more")) setMenu(false); });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !moreMenu.hidden) { setMenu(false); moreBtn.focus(); } });
 document.getElementById("panelGrip").addEventListener("click", () => panel.classList.toggle("collapsed"));

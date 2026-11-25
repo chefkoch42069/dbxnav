@@ -111,14 +111,29 @@ function drawReachTree(home, tree, layer, { onClick, popup } = {}) {
     if (onClick) layer.on("click", () => onClick(d));
     return layer;
   };
-  // Erst eine helle Kontur unter alle Abschnitte, damit die Linien auf jeder Grundkarte lesbar bleiben.
   const segs = tree.nodes.map((d) => [d.parent < 0 ? home : tree.nodes[d.parent], d]);
-  for (const [a, b] of segs) L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { color: "#fff", weight: 7, opacity: 0.8, interactive: false }).addTo(layer);
-  for (const [a, b] of segs) bind(L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { color: colorForMinutes(b.outMinutes), weight: 4, opacity: 0.95, lineCap: "round" }), b).addTo(layer);
+  // Dunkle, breitere Linie darunter („Casing“): Leuchtwirkung durch Kontrast statt Weichzeichner
+  for (const [a, b] of segs) L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { color: "#111614", weight: scale.weight(b.outMinutes) + 3, opacity: 0.55, interactive: false }).addTo(layer);
+  // Farbe UND Stärke tragen die Fahrzeit (nicht nur Farbe, WCAG 1.4.1)
+  for (const [a, b] of segs) bind(L.polyline([[a.lat, a.lon], [b.lat, b.lon]], { color: colorForMinutes(b.outMinutes), weight: scale.weight(b.outMinutes), opacity: 1, lineCap: "round" }), b).addTo(layer);
   for (const br of tree.branches) {
     const d = br.end;
-    bind(L.circleMarker([d.lat, d.lon], { radius: 5, color: "#fff", weight: 1.5, fillColor: colorForMinutes(d.outMinutes), fillOpacity: 1 }), d).addTo(layer);
+    const m = bind(L.circleMarker([d.lat, d.lon], { radius: 5, color: "#111614", weight: 1.5, fillColor: colorForMinutes(d.outMinutes), fillOpacity: 1 }), d).addTo(layer);
+    // Minuten am Linienende – lesbar ohne Farbe und ohne Antippen
+    m.bindTooltip(shortMinutes(d.outMinutes), { permanent: true, direction: "right", offset: [6, 0], className: "time-label", interactive: false });
   }
+  fadeInLines();
+}
+
+/** 95 → „1:35“, 40 → „40′“ – kurz genug für Kartenlabels. */
+const shortMinutes = (min) => { const m = Math.round(min); return m < 60 ? `${m}′` : `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`; };
+
+/** Linienebene einmal einblenden (200 ms, nur opacity, entfällt bei reduced-motion und im Homeless-Modus per CSS). */
+function fadeInLines() {
+  const c = map.getContainer();
+  c.classList.remove("lines-fade");
+  void c.offsetWidth; // Animation neu starten
+  c.classList.add("lines-fade");
 }
 
 const branchPoints = (br) => [br.from, ...br.stops].map((p) => [p.lat, p.lon]);
@@ -174,7 +189,7 @@ async function runDayTrip(home, o) {
   resultBox.append(
     el("h3", {}, `${dests.length} ${dests.length === 1 ? "Ziel" : "Ziele"} auf ${tree.branches.length} ${tree.branches.length === 1 ? "Strecke" : "Strecken"}, hin und zurück am selben Tag`),
     scale.legend(),
-    dl ? el("p", { class: "small" }, "Ohne Umstieg erreichbar: ", extLink(dl, "direkt.bahn.guru (nur Regionalverkehr)")) : null,
+    ...(dl ? [el("p", { class: "small" }, "Ohne Umstieg erreichbar: ", extLink(dl, "direkt.bahn.guru (nur Regionalverkehr)"))] : []), // append() würde null als Text schreiben
     el("div", { class: "field" }, el("label", {}, "Sortieren"), sortSel),
     list);
 }

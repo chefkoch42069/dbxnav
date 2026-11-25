@@ -1,5 +1,5 @@
 // Service Worker: App offline verfügbar, Kacheln zwischenspeichern (begrenzt), API-Antworten als Rückfall.
-const VERSION = "v16";
+const VERSION = "v17";
 const SHELL = `shell-${VERSION}`;
 const TILES = "tiles";
 const API = "api";
@@ -18,7 +18,7 @@ const SHELL_FILES = [
   "js/api/http.js", "js/api/transitous.js", "js/api/overpass.js", "js/api/localPoi.js", "js/api/weather.js", "js/api/city.js",
   "js/planner/dticket.js", "js/planner/stages.js", "js/planner/tour.js", "js/planner/daytrip.js", "js/planner/reachTree.js", "js/planner/roundtrip.js", "js/planner/accommodation.js", "js/planner/departures.js", "js/planner/budget.js", "js/planner/homeless.js", "js/planner/hiking.js", "js/planner/city.js", "js/planner/infra.js", "js/planner/booking.js", "js/planner/interrail.js", "js/planner/connection.js", "js/planner/multistop.js", "js/planner/shopping.js",
   "js/ui/dom.js", "js/ui/map.js", "js/ui/nav.js", "js/ui/placeInput.js", "js/ui/details.js", "js/ui/statesData.js",
-  "js/ui/planTab.js", "js/ui/budgetTab.js", "js/ui/boardTab.js", "js/ui/collectTab.js", "js/ui/savedTab.js", "js/ui/cityTab.js", "js/ui/youtuberTab.js", "js/ui/transitClick.js", "js/ui/interrailTab.js", "js/ui/tourView.js", "js/ui/routeTab.js", "js/ui/stopList.js", "js/ui/timeScale.js",
+  "js/ui/planTab.js", "js/ui/budgetTab.js", "js/ui/boardTab.js", "js/ui/collectTab.js", "js/ui/savedTab.js", "js/ui/cityTab.js", "js/ui/youtuberTab.js", "js/ui/transitClick.js", "js/ui/display.js", "js/ui/interrailTab.js", "js/ui/tourView.js", "js/ui/routeTab.js", "js/ui/stopList.js", "js/ui/timeScale.js",
 ];
 
 const TILE_HOSTS = ["tile.openstreetmap.de", "tileserver.memomaps.de", "tiles.openrailwaymap.org", "tile.waymarkedtrails.org", "tiles.openseamap.org"];
@@ -83,6 +83,17 @@ async function appNetworkFirst(req) {
   }
 }
 
+// Schriften ändern sich nie: einmal geladen, danach ohne Netzanfrage. Sie stehen bewusst nicht im
+// App-Shell – geladen werden sie nur, wenn die Seite sie nutzt (nicht bei Save-Data/Homeless-Modus).
+async function cacheFirst(req) {
+  const c = await caches.open(SHELL);
+  const hit = await c.match(req);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.ok) c.put(req, res.clone());
+  return res;
+}
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
@@ -90,5 +101,6 @@ self.addEventListener("fetch", (e) => {
   if (TILE_HOSTS.some((h) => url.hostname.endsWith(h))) return e.respondWith(tileFirst(req));
   if (API_HOSTS.includes(url.hostname)) return e.respondWith(networkFirst(req));
   if (url.origin === self.location.origin && url.pathname.includes("/data/poi/")) return e.respondWith(networkFirst(req, POI, MAX_POI));
+  if (url.origin === self.location.origin && url.pathname.includes("/vendor/fonts/")) return e.respondWith(cacheFirst(req));
   if (url.origin === self.location.origin) return e.respondWith(appNetworkFirst(req));
 });

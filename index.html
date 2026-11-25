@@ -12,21 +12,42 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Symbole: eine Strichstärke, currentColor; immer zusammen mit Text verwendet -->
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-plan" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></symbol>
+    <symbol id="i-route" viewBox="0 0 24 24"><path d="M6 19V9a4 4 0 0 1 4-4h8"/><path d="M15 2l3 3-3 3"/><circle cx="6" cy="19" r="2"/></symbol>
+    <symbol id="i-board" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 11h14M9 21l-2-4M15 21l2-4M9 14h.01M15 14h.01"/></symbol>
+    <symbol id="i-intl" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+    <symbol id="i-city" viewBox="0 0 24 24"><path d="M3 21h18M5 21V8l5-3v16M10 21V10h9v11M13 13h3M13 16h3M7 11h1M7 14h1"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></symbol>
+    <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2zM9 4v14M15 6v14"/></symbol>
+    <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+    <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 7h5M12 11h7M12 15h6"/></symbol>
+  </svg>
   <header class="topbar">
     <div class="more">
-      <button class="more-btn" id="moreBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Merkliste und Sammler" title="Merkliste und Sammler">☰</button>
+      <button class="more-btn" id="moreBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Menü: Merkliste, Sammler, Darstellung" title="Merkliste, Sammler, Darstellung"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
       <div class="more-menu" id="moreMenu" role="menu" hidden>
-        <button role="menuitem" data-tab="saved">⭐ Merkliste</button>
-        <button role="menuitem" data-tab="collect">🗺️ Sammler</button>
+        <button role="menuitem" data-tab="saved"><svg class="ico" aria-hidden="true"><use href="#i-star"/></svg>Merkliste</button>
+        <button role="menuitem" data-tab="collect"><svg class="ico" aria-hidden="true"><use href="#i-map"/></svg>Sammler</button>
+        <div class="sep" role="separator"></div>
+        <div class="menu-label" id="themeLabel">Darstellung</div>
+        <button role="menuitemradio" data-theme-choice="auto" aria-pressed="true"><svg class="ico" aria-hidden="true"><use href="#i-auto"/></svg>Automatisch</button>
+        <button role="menuitemradio" data-theme-choice="light" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-sun"/></svg>Hell</button>
+        <button role="menuitemradio" data-theme-choice="dark" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-moon"/></svg>Nachtfahrplan (dunkel)</button>
+        <button role="menuitemcheckbox" data-contrast-toggle aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-contrast"/></svg>Sonnenmodus (hoher Kontrast)</button>
       </div>
     </div>
     <div class="brand"><span class="logo" aria-hidden="true">D</span><span>Reiseplaner</span></div>
     <nav class="tabs" role="tablist">
-      <button role="tab" data-tab="plan" aria-selected="true"><span class="ico" aria-hidden="true">🧭</span><span class="lbl-long">Planen</span><span class="lbl-short" aria-hidden="true">Planen</span></button>
-      <button role="tab" data-tab="route"><span class="ico" aria-hidden="true">🔀</span><span class="lbl-long">Verbindung</span><span class="lbl-short" aria-hidden="true">Route</span></button>
-      <button role="tab" data-tab="board"><span class="ico" aria-hidden="true">🚉</span><span class="lbl-long">Abfahrten</span><span class="lbl-short" aria-hidden="true">Züge</span></button>
-      <button role="tab" data-tab="intl"><span class="ico" aria-hidden="true">🌍</span><span class="lbl-long">International</span><span class="lbl-short" aria-hidden="true">Europa</span></button>
-      <button role="tab" data-tab="city"><span class="ico" aria-hidden="true">🏙️</span><span class="lbl-long">Stadt</span><span class="lbl-short" aria-hidden="true">Stadt</span></button>
+      <button role="tab" data-tab="plan" aria-selected="true"><span class="ico" aria-hidden="true"><svg><use href="#i-plan"/></svg></span><span class="lbl-long">Planen</span><span class="lbl-short" aria-hidden="true">Planen</span></button>
+      <button role="tab" data-tab="route"><span class="ico" aria-hidden="true"><svg><use href="#i-route"/></svg></span><span class="lbl-long">Verbindung</span><span class="lbl-short" aria-hidden="true">Route</span></button>
+      <button role="tab" data-tab="board"><span class="ico" aria-hidden="true"><svg><use href="#i-board"/></svg></span><span class="lbl-long">Abfahrten</span><span class="lbl-short" aria-hidden="true">Züge</span></button>
+      <button role="tab" data-tab="intl"><span class="ico" aria-hidden="true"><svg><use href="#i-intl"/></svg></span><span class="lbl-long">International</span><span class="lbl-short" aria-hidden="true">Europa</span></button>
+      <button role="tab" data-tab="city"><span class="ico" aria-hidden="true"><svg><use href="#i-city"/></svg></span><span class="lbl-long">Stadt</span><span class="lbl-short" aria-hidden="true">Stadt</span></button>
     </nav>
   </header>
   <main class="layout">
