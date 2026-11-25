@@ -1,7 +1,7 @@
 // Eigene, vorab erzeugte Ortsdaten (tools/build_poi.py, wöchentlich per GitHub Action).
 // Schnell, ohne Server-Abhängigkeit, offline-fähig. Fehlen die Daten (z. B. lokal ohne
 // Pipeline), liefert alles hier null und die App fragt Overpass.
-import { distanceKm, tileFor } from "../lib/geo.js";
+import { distanceKm, tileFor, boundsAround } from "../lib/geo.js";
 
 const BASE = "data/poi";
 let indexPromise = null;
@@ -23,12 +23,6 @@ export function tilesForBounds([s, w, n, e], z) {
   return out;
 }
 
-export function boundsAround(center, radiusM) {
-  const dLat = radiusM / 111320;
-  const dLon = radiusM / (111320 * Math.cos((center.lat * Math.PI) / 180));
-  return [center.lat - dLat, center.lon - dLon, center.lat + dLat, center.lon + dLon];
-}
-
 function loadTile(key, z) {
   if (!tileCache.has(key)) {
     tileCache.set(key, fetch(`${BASE}/${z}/${key}.json`).then((r) => (r.ok ? r.json() : [])).catch(() => {
@@ -47,8 +41,11 @@ export async function localElements(center, { radiusM = 1500, bounds = null } = 
   const index = await loadIndex();
   if (!index) return null;
   const bb = bounds || boundsAround(center, radiusM);
-  const keys = tilesForBounds(bb, index.zoom).filter((k) => index.tiles.has(k));
-  if (keys.length > 64) throw new Error("Ausschnitt zu groß – bitte näher heranzoomen.");
+  const all = tilesForBounds(bb, index.zoom);
+  if (all.length > 64) throw new Error("Ausschnitt zu groß – bitte näher heranzoomen.");
+  const keys = all.filter((k) => index.tiles.has(k));
+  // Keine einzige Kachel vorhanden: vermutlich außerhalb der Daten (z. B. Ausland) → Overpass fragen
+  if (!keys.length) return null;
   const lists = await Promise.all(keys.map((k) => loadTile(k, index.zoom)));
   const [s, w, n, e] = bb;
   const out = [];

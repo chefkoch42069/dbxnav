@@ -18,12 +18,13 @@ function render() {
     el("li", {}, el("div", { class: "grow" }, el("strong", {}, f.name), el("span", { class: "muted small" }, f.kind)),
       el("button", { class: "btn small", onclick: () => focusOn(f.lat, f.lon, 14) }, "Karte"),
       el("button", { class: "btn small", onclick: () => nav.board.open(f) }, "Abfahrten"),
+      el("button", { class: "btn small", title: "Verbindung hierhin", onclick: () => nav.route.open({ to: f }) }, "🔀 Hin"),
       el("button", { class: "btn small", onclick: () => { nav.plan.addStop(f); nav.switchTab("plan"); } }, "+ Tour"),
       el("button", { class: "btn small", title: "entfernen", onclick: () => removeById("favorites", f.id) }, "✕"))));
 
   const tours = el("ul", { class: "list" }, state.tours.map((t) =>
     el("li", {}, el("div", { class: "grow" }, el("strong", {}, t.name), el("span", { class: "muted small" }, `${fmtDate(t.params.startDate)} · ${t.days.length} Tage`)),
-      el("button", { class: "btn small", onclick: () => { nav.switchTab("plan"); nav.plan.openTour(t); } }, "Öffnen"),
+      el("button", { class: "btn small", onclick: () => { if (t.kind === "interrail") nav.interrail.openTour(t); else { nav.switchTab("plan"); nav.plan.openTour(t); } } }, "Öffnen"),
       el("button", { class: "btn small", title: "löschen", onclick: () => confirm(`„${t.name}“ löschen?`) && removeById("tours", t.id) }, "✕"))));
 
   const jDate = el("input", { type: "date", value: todayBerlin() });

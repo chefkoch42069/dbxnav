@@ -70,6 +70,27 @@ Für alle Reisearten:
 - **Wetter** am Etappenort (DWD-Daten über Bright Sky) und **Regenradar** des DWD als Kartenebene.
 - Links zum Gegenprüfen bei **bahn.de/DB Navigator** und zu **direkt.bahn.guru** („Wohin komme ich direkt?“).
 
+**Verbindung**: Start und Ziel eingeben → Verbindungen nur mit Zügen, Bussen und Bahnen, die mit dem Deutschlandticket gehen.
+- Abfahrt oder Ankunft, „über“ einen Bahnhof, Umstiege begrenzen, nur Bahn, mehr Umstiegszeit, barrierefrei
+- Früher/später blättern, schnellste und umstiegsärmste Verbindung markiert, Details mit Karte
+- Optional ICE/IC zum Vergleich (ausgegraut, z. B. „wärst ca. 1 h 13 min schneller“)
+- Rückfahrt mit einem Klick, letzte Verbindung des Tages, bei DB gegenprüfen, „Bin ich gefahren“ (Sammler + Tagebuch)
+- Letzte Suchen, Sprung aus Abfahrtstafel („Verbindung von hier“) und Merkliste („Hin“)
+- **Mit Zwischenstopps**: beliebig viele Stopps mit eigener Aufenthaltszeit (15 min bis 6 h). Die App plant Etappe für Etappe, jede startet erst nach dem Aufenthalt. Pro Stopp gibt es Ideen für die Wartezeit (Sehenswertes, günstig essen, WLAN, Toiletten).
+- **Einkaufen**: Zuhause, Einkaufsort, Datum, gewünschte Einkaufszeit (oder bis Ladenschluss). Die App berechnet die späteste Abfahrt, mit der man zur Ladenöffnung da ist, und die beste Rückfahrt danach, mit Warnung vor der letzten Verbindung. Öffnungszeiten: Standard Mo–Sa 10–20 Uhr oder aus einem Einkaufszentrum in OSM (`opening_hours` wird für den gewählten Tag ausgewertet). Sonntag und geschlossene Tage werden abgefangen.
+- Fahrradmitnahme fehlt bewusst: Die deutschen Fahrplandaten enthalten sie meist nicht, die Suche würde fälschlich „keine Verbindung“ melden.
+
+**International (Interrail Global Pass)**:
+- Länderkarte: wo der Pass gilt (grün), Wohnland (gelb, nur je eine Fahrt hinaus und zurück), Länder außerhalb (grau).
+- „Erreichbare Ziele zeigen“: Fernbahnhöfe in Europa, die man ab dem Start in X Stunden erreicht. Antippen fügt das Ziel zur Tour hinzu.
+- Tourplanung wie beim D-Ticket (Etappen nach Fahrzeit, letzte Verbindung, Unterkünfte), aber mit ICE/IC/TGV/Railjet und optional Nachtzügen. Ein Nachtzug ist ein ganzer Reisetag ohne Hotel.
+- Hinweise pro Abschnitt: Reservierungspflicht (Faustregel je Land, Eurostar, Nachtzüge), Privatbahnen ohne Pass (Italo, FlixTrain, Iryo, Ouigo, WESTbahn, RegioJet, Leo Express), Stadtverkehr nicht im Pass.
+- Pass-Übersicht: Reisetage, Spanne, Anzahl Reservierungen und die passende Variante (flexibel 4/5/7/10/15 Tage oder durchgehend).
+- Warnung, wenn eine Fahrt mitten in der Reise nur durchs Wohnland führt.
+
+Länderliste, Reservierungs-Faustregel und Privatbahnen stehen in `INTERRAIL` in `js/config.js` und sind als *ungeprüft* markiert.
+Bitte vor der Reise auf interrail.eu bestätigen.
+
 **Abfahrtstafel**: Bahnhof eingeben → alle Abfahrten oder Ankünfte mit D-Ticket, also Regionalzug, S-Bahn,
 U-Bahn, Tram, Bus und Fähre, auch von Haltestellen direkt am Bahnhof. Filter je Verkehrsmittel, Verspätungen,
 Gleis, Fernverkehr optional ausgegraut. Antippen zeigt den Fahrtverlauf auf der Karte, und von jedem Halt kann man
@@ -163,7 +184,7 @@ js/config.js          zentrale Einstellungen
 js/api/               Transitous, Overpass, Wetter
 js/planner/           reine Logik (getestet): D-Ticket-Prüfung, Etappen, Touren, Tagestrip, Rundreise, Unterkünfte, Abfahrten, Homeless-Modus
 js/ui/                Reiter, Karte, Eingabefelder
-data/                 Bundesländer (Natural Earth, gemeinfrei, vereinfacht)
+data/                 Bundesländer und europäische Länder (Natural Earth, gemeinfrei, vereinfacht)
 vendor/leaflet/       Leaflet 1.9.4 (für offline)
 tools/                Daten-Pipeline: OSM-Auszug → Ortsdaten-Kacheln
 .github/workflows/    Tests, Daten erzeugen, GitHub Pages

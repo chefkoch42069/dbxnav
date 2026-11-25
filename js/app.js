@@ -3,8 +3,10 @@ import { initMap, map, groups } from "./ui/map.js";
 import { nav } from "./ui/nav.js";
 import { initPlanTab } from "./ui/planTab.js";
 import { initBoardTab } from "./ui/boardTab.js";
+import { initRouteTab } from "./ui/routeTab.js";
 import { initCollectTab } from "./ui/collectTab.js";
 import { initBudgetTab } from "./ui/budgetTab.js";
+import { initInterrailTab } from "./ui/interrailTab.js";
 import { initSavedTab } from "./ui/savedTab.js";
 import { initCityTab } from "./ui/cityTab.js";
 import { initYoutuberTab } from "./ui/youtuberTab.js";
@@ -41,9 +43,11 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !moreMen
 document.getElementById("panelGrip").addEventListener("click", () => panel.classList.toggle("collapsed"));
 
 initPlanTab(document.getElementById("tab-plan"));
+initRouteTab(document.getElementById("tab-route"));
 initBoardTab(document.getElementById("tab-board"));
 initCityTab(document.getElementById("tab-city"));
 initBudgetTab(document.getElementById("tab-budget"));
+initInterrailTab(document.getElementById("tab-intl"));
 initYoutuberTab(document.getElementById("tab-youtuber"));
 initCollectTab(document.getElementById("tab-collect"));
 initSavedTab(document.getElementById("tab-saved"));

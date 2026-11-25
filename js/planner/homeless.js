@@ -12,7 +12,7 @@ export const FREE_CATS = {
   books: { label: "Bücherschrank", icon: "📖" },
 };
 
-const NOT_PUBLIC = /^(private|no|customers|permit|employees|members)$/;
+import { NOT_PUBLIC } from "./budget.js";
 
 /** Ungefähre Fläche in Hektar aus dem umgebenden Rechteck (Overpass „bounds“). */
 export function bboxHectares(b) {

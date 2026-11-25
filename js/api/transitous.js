@@ -27,9 +27,9 @@ export async function reverseStop(lat, lon) {
 }
 
 /** Verbindungen. IC-Ausnahmen: zusätzlich Fernverkehr anfragen, dann wird gefiltert. */
-export async function plan(from, to, isoTime, { arriveBy = false, numItineraries = 4, useIcExceptions = true } = {}) {
-  const modes = [...TRANSITOUS.dticketModes];
-  if (useIcExceptions && IC_EXCEPTIONS.length) modes.push("LONG_DISTANCE");
+export async function plan(from, to, isoTime, { arriveBy = false, numItineraries = 4, useIcExceptions = true, modes: modeList = null } = {}) {
+  const modes = modeList ? [...modeList] : [...TRANSITOUS.dticketModes];
+  if (!modeList && useIcExceptions && IC_EXCEPTIONS.length) modes.push("LONG_DISTANCE");
   const res = await getJSON(
     `${B}/api/v5/plan?${qs({
       fromPlace: ll(from), toPlace: ll(to), time: isoTime, arriveBy,
@@ -41,11 +41,34 @@ export async function plan(from, to, isoTime, { arriveBy = false, numItineraries
   return res?.itineraries || [];
 }
 
-export async function oneToAll(place, isoTime, { maxMinutes = 180, arriveBy = false, maxTransfers = 4, signal } = {}) {
+/**
+ * Verbindungssuche mit allen Optionen und Blättern (früher/später).
+ * @returns {Promise<{itineraries:Array, nextPageCursor?:string, previousPageCursor?:string}>}
+ */
+export async function searchConnections(from, to, isoTime, {
+  arriveBy = false, pageCursor = null, via = null, maxTransfers = TRANSITOUS.maxTransfers,
+  transferTimeFactor = 1, wheelchair = false, modes = TRANSITOUS.dticketModes, numItineraries = 5,
+} = {}) {
+  const res = await getJSON(
+    `${B}/api/v5/plan?${qs({
+      fromPlace: ll(from), toPlace: ll(to),
+      time: pageCursor ? undefined : isoTime, arriveBy, pageCursor: pageCursor || undefined,
+      via: via ? ll(via) : undefined, viaMinimumStay: via ? 0 : undefined,
+      transitModes: modes.join(","), maxTransfers,
+      transferTimeFactor: transferTimeFactor !== 1 ? transferTimeFactor : undefined,
+      pedestrianProfile: wheelchair ? "WHEELCHAIR" : undefined,
+      numItineraries, maxTravelTime: 24 * 60,
+    })}`,
+    { timeout: 45000 }
+  );
+  return { itineraries: res?.itineraries || [], nextPageCursor: res?.nextPageCursor, previousPageCursor: res?.previousPageCursor };
+}
+
+export async function oneToAll(place, isoTime, { maxMinutes = 180, arriveBy = false, maxTransfers = 4, signal, modes = TRANSITOUS.railModes } = {}) {
   return getJSON(
     `${B}/api/v1/one-to-all?${qs({
       one: `${place.lat},${place.lon}`, time: isoTime, arriveBy, maxTravelTime: maxMinutes,
-      transitModes: TRANSITOUS.railModes.join(","), maxTransfers,
+      transitModes: modes.join(","), maxTransfers,
     })}`,
     { timeout: 60000, signal }
   );

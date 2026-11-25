@@ -14,6 +14,9 @@ export const BUDGET_CATS = {
   give: { label: "Verschenken", icon: "🎁" },
 };
 
+/** Nicht öffentlich zugänglich (Restaurant-WC, Werkskantine, Vereinsdusche …). */
+export const NOT_PUBLIC = /^(private|no|customers|permit|employees|members)$/;
+
 const DISCOUNTER = /\b(aldi|lidl|netto|penny|norma|kaufland|nah ?& ?gut|diska|np[- ]markt)\b/i;
 const CHEAP_CHAINS = /\b(mcdonald|burger king|kfc|subway|backwerk|back-factory|ditsch|kamps|döner|doener|imbiss)\b/i;
 
@@ -58,7 +61,7 @@ export function classify(t) {
   const feeNo = t.fee === "no" || t.charge === "0";
   const feeNote = feeNo ? null : t.fee === "yes" ? "kostenpflichtig" : "Gebühr unbekannt";
   // Nicht öffentlich zugänglich (Restaurant-WC, Werkskantine, Vereinsdusche …) → weglassen
-  if (/^(private|no|customers|permit|employees|members)$/.test(t.access || "")) return null;
+  if (NOT_PUBLIC.test(t.access || "")) return null;
   let cat = null, note = null, free = false;
 
   if (/bahnhofsmission/i.test(name)) { cat = "help"; free = true; note = "Hilfe, Tee/Kaffee, Ruheraum, Beratung"; }

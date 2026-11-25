@@ -2,7 +2,8 @@
 import { IC_EXCEPTIONS } from "../config.js";
 
 const NEVER = new Set(["HIGHSPEED_RAIL", "NIGHT_RAIL", "COACH", "AIRPLANE"]);
-const NON_TRANSIT = new Set(["WALK", "BIKE", "CAR", "RENTAL", "CAR_PARKING", "ODM", "FLEX"]);
+import { OWN_WAY } from "../lib/legs.js";
+const NON_TRANSIT = new Set([...OWN_WAY, "ODM", "FLEX"]);
 const IC_NAME = /^(ICE|ECE|IC|EC|RJX?|NJ|EN|FLX)\s?\d*/i;
 
 const norm = (s) => (s || "").toLowerCase().replace(/[()\s.,-]+/g, " ").replace(/\bhauptbahnhof\b/g, "hbf").trim();
@@ -69,15 +70,15 @@ export function transitLegs(it) {
 }
 
 /** Beste D-Ticket-Verbindung: früheste Ankunft, dann wenig Umstiege. */
-export function pickBest(itineraries, exceptions = IC_EXCEPTIONS) {
-  const valid = (itineraries || []).filter((it) => checkItinerary(it, exceptions).ok);
+export function pickBest(itineraries, check = (it) => checkItinerary(it)) {
+  const valid = (itineraries || []).filter((it) => check(it).ok);
   valid.sort((a, b) => Date.parse(a.endTime) - Date.parse(b.endTime) || a.transfers - b.transfers);
   return valid[0] || null;
 }
 
 /** Späteste D-Ticket-Verbindung (für „letzte Verbindung“). */
-export function pickLatest(itineraries, exceptions = IC_EXCEPTIONS) {
-  const valid = (itineraries || []).filter((it) => checkItinerary(it, exceptions).ok);
+export function pickLatest(itineraries, check = (it) => checkItinerary(it)) {
+  const valid = (itineraries || []).filter((it) => check(it).ok);
   valid.sort((a, b) => Date.parse(b.startTime) - Date.parse(a.startTime) || a.transfers - b.transfers);
   return valid[0] || null;
 }
@@ -91,8 +92,8 @@ export function checkDeparture(st, exceptions = IC_EXCEPTIONS) {
  * Mehrere D-Ticket-Verbindungen zur Auswahl (z. B. Rückfahrten): nach Abfahrt sortiert, ohne Doppelte und
  * ohne Verbindungen, die früher abfahren und trotzdem nicht früher ankommen als eine andere (überholt).
  */
-export function listOptions(itineraries, exceptions = IC_EXCEPTIONS) {
-  const valid = (itineraries || []).filter((it) => checkItinerary(it, exceptions).ok);
+export function listOptions(itineraries, check = (it) => checkItinerary(it)) {
+  const valid = (itineraries || []).filter((it) => check(it).ok);
   const seen = new Set();
   const uniq = valid.filter((it) => { const k = `${it.startTime}|${it.endTime}`; if (seen.has(k)) return false; seen.add(k); return true; });
   const t = (x) => Date.parse(x);
@@ -100,3 +101,15 @@ export function listOptions(itineraries, exceptions = IC_EXCEPTIONS) {
     (t(b.startTime) > t(a.startTime) || t(b.endTime) < t(a.endTime) || b.transfers < a.transfers));
   return uniq.filter((a) => !dominated(a)).sort((a, b) => t(a.startTime) - t(b.startTime));
 }
+
+/** Regel-Paket „Deutschlandticket“ für Tourplanung und Anzeige. */
+export const DTICKET_RULES = {
+  id: "dticket",
+  label: "Deutschlandticket",
+  checkLeg: (leg) => checkLeg(leg),
+  checkItinerary: (it) => checkItinerary(it),
+  planOpts: {},
+  wholeDay: () => false,
+  latestHint: "Nachtzüge gibt es mit dem D-Ticket nicht.",
+  verifyTitle: "Im DB Navigator/bahn.de „Nur Nahverkehr“ wählen",
+};

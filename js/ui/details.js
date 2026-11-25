@@ -1,7 +1,7 @@
 // Wiederverwendbare Ansichten: Verbindung, Unterkünfte, Bahnhofs-Infos, Ausflugsziele, Wetter.
-import { el, clear, badgeFor, spinnerLine, errorLine, extLink, osmLink, toast } from "./dom.js";
+import { el, clear, badgeFor, spinnerLine, errorLine, extLink, osmLink, toast, plain } from "./dom.js";
 import { fmtTime, fmtDuration, diffSec, todayBerlin, addDays } from "../lib/time.js";
-import { checkLeg, lineName } from "../planner/dticket.js";
+import { lineName, DTICKET_RULES } from "../planner/dticket.js";
 import { estimatePrice, ratingOrder, TYPE_LABEL } from "../planner/accommodation.js";
 import { accommodations, stationInfo, stationCategory, sights, sightCategory, hikingRoutes, hikingRouteGeometry, waymarkedLink, libraries, MAX_MAP_KM } from "../api/overpass.js";
 import { reverseStop } from "../api/transitous.js";
@@ -9,18 +9,18 @@ import { walkHours, fmtHours } from "../planner/hiking.js";
 import { bookingLinks } from "../planner/booking.js";
 import { nav } from "./nav.js";
 import { forecast } from "../api/weather.js";
-import { map, groups, popupContent, focusOn, fitPoints, pinIcon, trackLabel, showOverlay } from "./map.js";
+import { map, groups, popupContent, focusOn, fitPoints, pinIcon, trackLabel, showOverlay, emojiIcon } from "./map.js";
 import { addFavorite } from "../state.js";
 import { APP } from "../config.js";
 
-export function renderItinerary(it) {
+export function renderItinerary(it, rules = DTICKET_RULES) {
   const ul = el("ul", { class: "legs" });
   for (const leg of it.legs) {
     if (leg.mode === "WALK") {
       if (leg.duration >= 120) ul.append(el("li", {}, el("span", { class: "t muted" }, fmtTime(leg.startTime)), el("span", { class: "muted" }, "🚶"), el("span", { class: "muted small" }, `${Math.round(leg.duration / 60)} min Fußweg`)));
       continue;
     }
-    const chk = checkLeg(leg);
+    const chk = rules.checkLeg(leg);
     ul.append(
       el("li", {},
         el("span", { class: "t" }, fmtTime(leg.startTime)),
@@ -120,8 +120,8 @@ export function stationPanel(place) {
         ul.append(el("li", {}, el("div", { class: "grow" }, el("strong", {}, `${STATION_ICON[cat] || "•"} ${cat}`),
           el("span", { class: "muted small" }, `${list.length}× · nächste ${Math.round(near.dist * 1000)} m${near.tags.name ? ` (${near.tags.name})` : ""}${near.tags.opening_hours ? ` · ${near.tags.opening_hours}` : ""}`))));
         for (const it of list.slice(0, 5)) {
-          groups.places.addLayer(L.marker([it.lat, it.lon], { icon: L.divIcon({ className: "", html: `<div style="font-size:18px">${STATION_ICON[cat] || "•"}</div>`, iconSize: [20, 20] }) })
-            .bindPopup(`${cat}${it.tags.name ? ": " + it.tags.name.replace(/[<>&]/g, "") : ""}`));
+          groups.places.addLayer(L.marker([it.lat, it.lon], { icon: emojiIcon(STATION_ICON[cat] || "•", 18) })
+            .bindPopup(`${cat}${it.tags.name ? ": " + plain(it.tags.name) : ""}`));
         }
       }
       clear(box).append(items.length ? ul : el("p", { class: "muted" }, "In OSM ist hier nichts eingetragen."), el("p", { class: "muted small" }, "Umkreis 600 m, Daten © OpenStreetMap-Mitwirkende."));
@@ -140,8 +140,8 @@ export function sightsPanel(place) {
       const ul = el("ul", { class: "list" });
       for (const it of items.slice(0, 30)) {
         const cat = sightCategory(it.tags);
-        groups.places.addLayer(L.marker([it.lat, it.lon], { icon: L.divIcon({ className: "", html: `<div style="font-size:18px">${SIGHT_ICON[cat]}</div>`, iconSize: [20, 20] }) })
-          .bindPopup(it.tags.name.replace(/[<>&]/g, "")));
+        groups.places.addLayer(L.marker([it.lat, it.lon], { icon: emojiIcon(SIGHT_ICON[cat], 18) })
+          .bindPopup(plain(it.tags.name)));
         const wiki = it.tags.wikipedia ? `https://de.wikipedia.org/wiki/${encodeURIComponent((it.tags.wikipedia.split(":")[1] || it.tags.wikipedia).replace(/ /g, "_"))}` : null;
         ul.append(el("li", {}, el("div", { class: "grow" }, el("strong", {}, `${SIGHT_ICON[cat]} ${it.tags.name}`), el("span", { class: "muted small" }, `${cat} · ${it.dist.toFixed(1)} km`)),
           wiki ? extLink(wiki, "Wiki") : null,
@@ -153,7 +153,7 @@ export function sightsPanel(place) {
   return box;
 }
 
-const esc = (s) => String(s).replace(/[<>&"]/g, "");
+const esc = plain;
 
 /** Markierte Wanderwege in der Umgebung (OSM-Routen), Ebene „Wanderwege“ wird eingeschaltet. */
 export function hikingPanel(place) {
@@ -264,7 +264,7 @@ export function libraryPanel(place) {
       const ul = el("ul", { class: "list" });
       for (const it of items.slice(0, 20)) {
         const i = it.info;
-        const m = L.marker([it.lat, it.lon], { icon: L.divIcon({ className: "", html: '<div style="font-size:18px">📚</div>', iconSize: [20, 20] }) })
+        const m = L.marker([it.lat, it.lon], { icon: emojiIcon("📚", 18) })
           .bindPopup(`<strong>${esc(i.name)}</strong>${i.address ? "<br>" + esc(i.address) : ""}${i.hours ? "<br>🕒 " + esc(i.hours) : ""}${i.wifi ? "<br>📶 WLAN" : ""}`);
         groups.places.addLayer(m);
         ul.append(el("li", {},

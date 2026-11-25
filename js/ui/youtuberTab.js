@@ -1,7 +1,7 @@
 // Reiter „YouTuber-Modus“: Karten öffentlicher Infrastruktur und Drehorte im Kartenausschnitt –
 // Bahn (Strecken, Tempo, Signale, Oberleitung), Wasserstraßen, Strom, Brücken, Tunnel, Türme, Lost Places.
 import { el, clear, toast, spinnerLine, errorLine, extLink, osmLink } from "./dom.js";
-import { map, groups, focusOn, setBase } from "./map.js";
+import { map, groups, focusOn, setBase, emojiIcon } from "./map.js";
 import { nav } from "./nav.js";
 import { addFavorite } from "../state.js";
 import { INFRA_LAYERS } from "../config.js";
@@ -136,7 +136,7 @@ function render() {
   const markers = new Map();
   for (const it of list) {
     const m = L.marker([it.lat, it.lon], {
-      icon: L.divIcon({ className: "", html: `<div style="font-size:20px;filter:drop-shadow(0 1px 1px #0008)">${INFRA_CATS[it.cat].icon}</div>`, iconSize: [22, 22] }),
+      icon: emojiIcon(INFRA_CATS[it.cat].icon, 20),
       title: it.title,
     }).bindPopup(() => popup(it));
     m.addTo(groups.infra);

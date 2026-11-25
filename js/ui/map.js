@@ -23,7 +23,7 @@ export function showOverlay(name) {
   if (overlays[name] && !map.hasLayer(overlays[name])) overlays[name].addTo(map);
 }
 
-const MODE_COLORS = { zug: "#b3261e", sbahn: "#008d4f", ubahn: "#1b4f9c", tram: "#c2185b", bus: "#6a3d9a", faehre: "#00809d", fern: "#6b7280" };
+export const MODE_COLORS = { zug: "#b3261e", sbahn: "#008d4f", ubahn: "#1b4f9c", tram: "#c2185b", bus: "#6a3d9a", faehre: "#00809d", fern: "#6b7280" };
 export const DAY_COLORS = ["#0f5132", "#2f6db3", "#b26a00", "#8e24aa", "#c62828", "#00838f", "#5d4037", "#ad1457"];
 
 export function initMap() {
@@ -37,7 +37,8 @@ export function initMap() {
   for (const [name, cfg] of Object.entries(OVERLAY_LAYERS)) overlays[name] = L.tileLayer(cfg.url, cfg.options);
   overlays["Regenradar (DWD)"] = L.tileLayer.wms(RAIN_RADAR.url, RAIN_RADAR.options);
 
-  for (const g of ["route", "places", "lodging", "daytrip", "collector", "trip", "infra", "homeless"]) groups[g] = L.layerGroup();
+  for (const g of ["route", "places", "lodging", "daytrip", "collector", "trip", "countries", "infra", "homeless"]) groups[g] = L.layerGroup();
+  groups.countries.addTo(map);
   for (const g of ["route", "places", "lodging", "daytrip", "trip", "infra", "homeless"]) groups[g].addTo(map);
   overlays["Route"] = groups.route;
   overlays["Bahnhofs-Infos & Ausflugsziele"] = groups.places;
@@ -45,6 +46,7 @@ export function initMap() {
   overlays["Tagestrip-Ziele"] = groups.daytrip;
   overlays["Gefahrene Strecken"] = groups.collector;
   overlays["Fahrt (Abfahrtstafel)"] = groups.trip;
+  overlays["Interrail-Länder"] = groups.countries;
   overlays["Infrastruktur (YouTuber)"] = groups.infra;
   overlays["Homeless-Modus"] = groups.homeless;
 
@@ -52,6 +54,11 @@ export function initMap() {
   L.control.scale({ imperial: false }).addTo(map);
   map.on("baselayerchange", (e) => { currentBase = e.name; setPref("baseLayer", e.name); });
   return map;
+}
+
+/** Emoji als Kartenmarker (eine Stelle statt sechs Kopien). */
+export function emojiIcon(emoji, size = 20) {
+  return L.divIcon({ className: "", html: `<div style="font-size:${size}px;line-height:1;filter:drop-shadow(0 1px 1px #0008)">${emoji}</div>`, iconSize: [size + 2, size + 2] });
 }
 
 export function pinIcon(label = "", color) {

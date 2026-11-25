@@ -11,6 +11,7 @@ import { stopTimes, trip as fetchTrip, reverseStop } from "../api/transitous.js"
 import { prepareDepartures, MODE_GROUPS } from "../planner/departures.js";
 import { berlinToISO, fmtTime, todayBerlin, berlinDate } from "../lib/time.js";
 import { legPoints } from "../lib/polyline.js";
+import { isRide } from "../lib/legs.js";
 import { badgeFor } from "./dom.js";
 
 const FILTER_GROUPS = ["zug", "sbahn", "ubahn", "tram", "bus", "faehre"];
@@ -71,6 +72,7 @@ async function open(p) {
   infoBox.replaceChildren(el("div", { class: "btns" },
     el("button", { class: "btn small", onclick: () => toast(addFavorite(p, "Bahnhof") ? "Gemerkt" : "Schon gemerkt") }, "☆ Merken"),
     el("button", { class: "btn small", onclick: () => { nav.plan.setStart(p); nav.switchTab("plan"); toast(`Start: ${p.name}`); } }, "Als Start"),
+    el("button", { class: "btn small", onclick: () => nav.route.open({ from: p }) }, "🔀 Verbindung von hier"),
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Infos am Bahnhof ${p.name}`), stationPanel(p))); } }, "Bahnhofs-Infos"),
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Wanderwege um ${p.name}`), hikingPanel(p))); } }, "🥾 Wanderwege"),
     el("button", { class: "btn small", onclick: () => { clear(detailBox).append(el("div", { class: "card" }, el("h4", {}, `Bibliotheken um ${p.name}`), libraryPanel(p))); } }, "📚 Bibliotheken"),
@@ -135,7 +137,7 @@ async function showTrip(x) {
   clear(detailBox).append(spinnerLine("Lade Fahrtverlauf …"));
   try {
     const t = await fetchTrip(x.tripId);
-    const leg = t.legs.find((l) => l.mode !== "WALK") || t.legs[0];
+    const leg = t.legs.find(isRide) || t.legs[0];
     const stops = [leg.from, ...(leg.intermediateStops || []), leg.to];
     const hereIdx = stops.findIndex((s) => s.name === x.stopName || s.stopId === x.place?.stopId);
     groups.trip.clearLayers();

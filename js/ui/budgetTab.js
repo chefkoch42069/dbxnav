@@ -1,8 +1,8 @@
 // Reiter „Homeless-Modus“: billig essen, Strom & WLAN, Parks und kostenlose Orte für den Tag –
 // rund um einen Punkt oder für eine ganze Stadt (Stadtgrenze aus OSM). Daten aus OpenStreetMap.
-import { el, clear, toast, spinnerLine, errorLine, extLink, osmLink } from "./dom.js";
+import { el, clear, toast, spinnerLine, errorLine, extLink, osmLink, plain } from "./dom.js";
 import { placeInput } from "./placeInput.js";
-import { map, groups, fitPoints, focusOn, pinIcon, setBase } from "./map.js";
+import { map, groups, fitPoints, focusOn, pinIcon, setBase, emojiIcon } from "./map.js";
 import { nav } from "./nav.js";
 import { state, addFavorite } from "../state.js";
 import { budgetPlaces, freePlaces, bboxAround } from "../api/overpass.js";
@@ -46,7 +46,7 @@ function prepareFree(raw) {
 function marker(it) {
   const c = CATS[it.c.cat];
   return L.marker([it.lat, it.lon], {
-    icon: L.divIcon({ className: "", html: `<div style="font-size:20px;filter:drop-shadow(0 1px 1px #0008)">${c.icon}</div>`, iconSize: [22, 22] }),
+    icon: emojiIcon(c.icon, 20),
     title: it.tags.name || c.label,
   });
 }
@@ -281,7 +281,7 @@ export function initBudgetTab(root) {
     groups.homeless.clearLayers();
     if (city) for (const ring of city.outline) L.polyline(ring, { color: "#1b4f9c", weight: 3, dashArray: "8 6", opacity: 0.8, interactive: false }).addTo(groups.homeless);
     const list = items.filter((it) => active.has(it.c.cat) && (!onlyFree || it.c.free));
-    L.marker([center.lat, center.lon], { icon: pinIcon("●") }).addTo(groups.homeless).bindPopup(center.name.replace(/[<>&]/g, ""));
+    L.marker([center.lat, center.lon], { icon: pinIcon("●") }).addTo(groups.homeless).bindPopup(plain(center.name));
     const byCat = {};
     for (const it of list) (byCat[it.c.cat] ||= []).push(it);
     if (byCat.park) byCat.park.sort((a, b) => b.ha - a.ha); // größte Parks zuerst
