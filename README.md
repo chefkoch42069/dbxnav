@@ -220,3 +220,11 @@ Daten: © OpenStreetMap-Mitwirkende, Fahrpläne über [Transitous](https://trans
 - **Tempo Bahn:** Strecken farbig nach Höchstgeschwindigkeit (OSM `maxspeed`), Filter aus/alle/ab 100/160/200/250/300 km/h.
 - **Tempo Autobahn:** nur Autobahnen (`highway=motorway`), Filter alle / nur unbegrenzt / ≥ 130 / ≤ 120 / ≤ 100 / variabel. `maxspeed=none` und `DE:motorway` gelten als unbegrenzt.
 - **Brücken:** Straßenbrücken nur noch, wenn sie Autobahnbrücken sind, über eine Autobahn führen oder mindestens 80 m hoch sind (`height`). Eisenbahnbrücken und Viadukte bleiben. Filter „nur ≥ 80 m“ und „nur über Autobahnen“.
+
+### Flug & Fähre (Reiter International)
+- **Flughäfen vergleichen:** für die nächsten 3/5/8 oder alle deutschen Flughäfen die Anreise mit dem D-Ticket (Abfahrt, Ankunft, Dauer), sortiert nach Fahrzeit. Dazu fertig ausgefüllte Links zu Google Flights, Skyscanner und Kayak sowie **ein Kayak-Link für alle Abflughäfen zusammen** (Kayak vergleicht dann z. B. München und Hamburg in einer Suche).
+- **Fähren ab Deutschland:** Ostsee, Nordsee-Inseln, Bodensee – mit Anreise zum Hafen per D-Ticket und Links zur Preissuche.
+- Preise selbst ruft die App nicht ab: Dafür gibt es keine freie Schnittstelle, ein Schlüssel ließe sich ohne Server nicht geheim halten, und Auslesen der Anbieterseiten verbieten deren Bedingungen (und CORS im Browser).
+
+### Satellitenkarte
+Dritte Grundkarte „Satellit“ (Esri World Imagery, mit Quellenhinweis).
