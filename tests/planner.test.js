@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { P, leg, itin } from "./helpers.js";
-import { checkLeg, checkItinerary, pickBest, pickLatest, matchException } from "../js/planner/dticket.js";
+import { checkLeg, checkItinerary, pickBest, pickLatest, matchException, listOptions } from "../js/planner/dticket.js";
 import { cutCandidates, chooseCut, truncateItinerary } from "../js/planner/stages.js";
 import { planTour } from "../js/planner/tour.js";
 import { combineReachability } from "../js/planner/daytrip.js";
@@ -427,4 +427,14 @@ test("Buchen: Ortsname, Hostelworld-Name, Suchlinks", () => {
   assert.match(r.rentals[2].note, /2 Nächte/);
   // Umlaute im Ortsnamen werden für die URL kodiert
   assert.match(bookingLinks({ name: "Würzburg Hbf" }, { checkin: "2026-12-05", checkout: "2026-12-06" }).budget[0].url, /ss=W%C3%BCrzburg/);
+});
+
+test("listOptions: Rückfahrten ohne Doppelte, ohne überholte, ohne Fernverkehr", () => {
+  const A = P("Koblenz", 50.35, 7.59), B = P("Mainz", 50.0, 8.26);
+  const re = (s, e) => itin([leg("REGIONAL_RAIL", A, B, s, e, { displayName: "RE2" })]);
+  const ice = itin([leg("HIGHSPEED_RAIL", A, B, "09:00", "09:50", { displayName: "ICE 123" })]);
+  const opts = listOptions([re("10:00", "11:30"), re("09:00", "10:30"), re("09:00", "10:30"), re("09:10", "11:40"), ice, re("11:00", "12:30")]);
+  // 09:10 → 11:40 ist überholt (09:00 → 10:30 und 10:00 → 11:30 sind besser), ICE nicht mit D-Ticket
+  assert.deepEqual(opts.map((o) => o.startTime.slice(11, 16)), ["09:00", "10:00", "11:00"]);
+  assert.deepEqual(listOptions([]), []);
 });

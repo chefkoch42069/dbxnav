@@ -3,6 +3,6 @@ export const nav = {
   switchTab: () => {},
   plan: { setStart: () => {}, addStop: () => {}, openTour: () => {}, suggestRoundtrip: () => {} },
   board: { open: () => {} },
-  budget: { open: () => {} },
-  city: { open: () => {} },
+  budget: { open: () => {}, search: () => {} },
+  city: { open: () => {}, attachAddon: () => {}, showAddon: () => {} },
 };

@@ -86,3 +86,17 @@ export function pickLatest(itineraries, exceptions = IC_EXCEPTIONS) {
 export function checkDeparture(st, exceptions = IC_EXCEPTIONS) {
   return checkLeg({ ...st, from: st.place, to: st.tripTo }, exceptions);
 }
+
+/**
+ * Mehrere D-Ticket-Verbindungen zur Auswahl (z. B. Rückfahrten): nach Abfahrt sortiert, ohne Doppelte und
+ * ohne Verbindungen, die früher abfahren und trotzdem nicht früher ankommen als eine andere (überholt).
+ */
+export function listOptions(itineraries, exceptions = IC_EXCEPTIONS) {
+  const valid = (itineraries || []).filter((it) => checkItinerary(it, exceptions).ok);
+  const seen = new Set();
+  const uniq = valid.filter((it) => { const k = `${it.startTime}|${it.endTime}`; if (seen.has(k)) return false; seen.add(k); return true; });
+  const t = (x) => Date.parse(x);
+  const dominated = (a) => uniq.some((b) => b !== a && t(b.startTime) >= t(a.startTime) && t(b.endTime) <= t(a.endTime) &&
+    (t(b.startTime) > t(a.startTime) || t(b.endTime) < t(a.endTime) || b.transfers < a.transfers));
+  return uniq.filter((a) => !dominated(a)).sort((a, b) => t(a.startTime) - t(b.startTime));
+}

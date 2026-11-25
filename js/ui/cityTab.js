@@ -3,7 +3,7 @@ import { el, clear, toast, spinnerLine, errorLine, extLink, osmLink, direktLink 
 import { placeInput } from "./placeInput.js";
 import { map, groups, focusOn, pinIcon, setBase } from "./map.js";
 import { nav } from "./nav.js";
-import { addFavorite } from "../state.js";
+import { state, setPref, addFavorite } from "../state.js";
 import { geocode, stopTimes } from "../api/transitous.js";
 import { stationShops, stationInfo } from "../api/overpass.js";
 import { prepareDepartures } from "../planner/departures.js";
@@ -17,14 +17,53 @@ const RADIUS_M = 500;
 let box;
 let loadId = 0;
 
+// Zusatzmodi: eigene Bereiche (Homeless-Modus, YouTuber), die man im Stadt-Reiter zuschaltet
+const ADDONS = {
+  homeless: { label: "🌳 Homeless-Modus", hint: "billig essen, Strom & WLAN, Parks – ganze Stadt" },
+  youtuber: { label: "🎥 YouTuber", hint: "Infrastruktur-Karten und Drehorte" },
+};
+const addonSections = {};
+const addonChips = {};
+const addonOn = (k) => Boolean(state.prefs.addons?.[k]);
+let lastPlace = null;
+
+function setAddon(k, on) {
+  setPref("addons", { ...(state.prefs.addons || {}), [k]: on });
+  addonChips[k]?.setAttribute("aria-pressed", String(on));
+  if (addonSections[k]) addonSections[k].hidden = !on;
+  if (!on) (k === "youtuber" ? groups.infra : groups.homeless).clearLayers();
+  if (on && k === "homeless" && lastPlace) nav.budget.search(lastPlace);
+}
+
 export function initCityTab(root) {
   const input = placeInput({ label: "Stadt", id: "city-name", placeholder: "z. B. Koblenz", snapToStop: false, onSelect: (p) => load(p) });
   box = el("div");
+  const chips = Object.entries(ADDONS).map(([k, a]) => {
+    const b = el("button", { class: "chip", "aria-pressed": String(addonOn(k)), title: a.hint, onclick: () => setAddon(k, !addonOn(k)) }, a.label);
+    addonChips[k] = b;
+    return b;
+  });
+  const slots = el("div");
   root.append(
     el("h2", {}, "Stadt"),
     el("p", { class: "lead" }, "Stadt eingeben: Infos zum Hauptbahnhof und alle Läden im Bahnhof und bis 500 m drumherum."),
-    input.node, box);
+    input.node,
+    el("div", { class: "addons" }, el("div", { class: "muted small", style: { marginBottom: "4px" } }, "Zusatzmodi:"), el("div", { class: "chips" }, chips)),
+    box, slots);
   nav.city.open = (p) => { input.value = p; nav.switchTab("city"); load(p); };
+  /** Bereich eines Zusatzmodus unter die Stadt-Infos hängen (aus app.js). */
+  nav.city.attachAddon = (k, section) => {
+    section.classList.add("addon-section");
+    section.hidden = !addonOn(k);
+    addonSections[k] = section;
+    slots.append(section);
+  };
+  /** Zusatzmodus einschalten und hinspringen (z. B. „Homeless-Modus“-Knopf in anderen Reitern). */
+  nav.city.showAddon = (k) => {
+    if (!addonOn(k)) setAddon(k, true);
+    nav.switchTab("city");
+    setTimeout(() => addonSections[k]?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
 }
 
 /** Hauptbahnhof zur Stadt suchen. Ist p schon ein Bahnhof, wird er genommen. */
@@ -42,6 +81,8 @@ async function findStation(p) {
 
 async function load(p, forced = null) {
   const id = ++loadId;
+  lastPlace = p;
+  if (addonOn("homeless")) nav.budget.search(p); // Homeless-Modus sucht gleich für dieselbe Stadt
   const stale = () => id !== loadId;
   clear(box).append(spinnerLine(`Suche den Hauptbahnhof von ${p.name} …`));
   groups.places.clearLayers();

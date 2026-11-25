@@ -58,7 +58,7 @@ python3 tools/build_poi.py filtered.osm.pbf data/poi
 |---|---|
 | Tagestrip | Karte aller Ziele, die hin **und** zurück am selben Tag gehen (Transitous `one-to-all` hin + zurück), mit Aufenthaltsdauer und spätester Rückfahrt. Pro Ziel: Hin- und letzte Rückfahrt, Ausflugsziele aus OSM (Burgen, Seen, Aussicht, Museen), Bahnhofs-Infos, Wetter. |
 | Wochenende | Ziel wählen (oder „Ziele in Reichweite“ auf der Karte antippen), 1–2 Nächte, Unterkünfte am Zielort, Rückfahrt. |
-| Mehrtagestour | Mehrere Ziele, Rundreise-Modus, **Etappen nach max. Fahrstunden pro Tag**: zu lange Abschnitte werden am letzten sinnvollen Umstieg geteilt, ein kleinerer Übernachtungsort lässt sich als Alternative wählen. |
+| Mehrtagestour | Mehrere Ziele, Rundreise-Modus, **Etappen nach max. Fahrstunden pro Tag**: zu lange Abschnitte werden am letzten sinnvollen Umstieg geteilt, ein kleinerer Übernachtungsort lässt sich als Alternative wählen. Ohne Rundreise (einfache Fahrt) folgen gleich die **Rückfahrten** zum Start: die nächsten D-Ticket-Verbindungen ab einer Stunde nach Ankunft (Datum/Uhrzeit änderbar), die letzte Rückfahrt des Tages und, wenn der Rückweg zu lang ist, „Rückweg als Tour planen“. |
 
 Für alle Reisearten:
 
@@ -95,7 +95,7 @@ und den nächsten D-Ticket-Abfahrten, mit Sprung zur Abfahrtstafel (nicht im Hom
 Wegmarkierung in Worten (aus `osmc:symbol`), Betreuer, Beschreibung, Links zu Höhenprofil und Website.
 „Auf Karte“ zeichnet den Verlauf und sucht die nächsten Haltestellen an Start und Ziel.
 
-**YouTuber-Modus**: Karten öffentlicher Infrastruktur zum Zuschalten (OpenRailwayMap: Strecken, Höchstgeschwindigkeit,
+**YouTuber** (Zusatzmodus im Stadt-Reiter): Karten öffentlicher Infrastruktur zum Zuschalten (OpenRailwayMap: Strecken, Höchstgeschwindigkeit,
 Signale, Elektrifizierung; OpenSeaMap: Wasserstraßen & Schleusen; Radwege) und Drehorte im Kartenausschnitt aus OSM:
 Kraftwerke, Umspannwerke, Windräder, Brücken & Viadukte, Tunnel, Staudämme, Wehre, Schleusen, Wasserwerke, Türme,
 Stellwerke, Drehscheiben, Bunker, verlassene Bahnhöfe, ab Zoom 13 auch Hochspannungsleitungen (nach Spannung gefärbt)
@@ -103,7 +103,7 @@ und stillgelegte Bahnstrecken. Popups mit Spannung, Höhe, Baujahr, Betreiber, W
 Hinweise zu Recht & Sicherheit (Bahnanlagen, Drohnen-Flugverbotszonen, Lost Places). OpenInfraMap fehlt bewusst:
 nur Vektorkacheln, die Leaflet ohne Zusatzbibliothek nicht zeigt.
 
-**Homeless-Modus**: durch den Tag kommen, für eine **ganze Stadt** (Stadtgrenze aus OSM über Nominatim, gestrichelt
+**Homeless-Modus** (Zusatzmodus im Stadt-Reiter, sucht automatisch für die eingegebene Stadt): durch den Tag kommen, für eine **ganze Stadt** (Stadtgrenze aus OSM über Nominatim, gestrichelt
 auf der Karte, die Karte wechselt dabei auf die ÖPNVKarte) oder einen Umkreis um Bahnhof, Standort oder Kartenpunkt:
 billig essen (Discounter, Bäcker, Imbiss, Tafeln/Suppenküchen/Foodsharing-Fairteiler), Handy-Ladestationen und Steckdosen,
 Gratis-WLAN, Bibliotheken, Bahnhofsmission und Angebote für Wohnungslose. Dazu **Parks** (größte zuerst) und kostenlose Orte:
@@ -117,10 +117,10 @@ Bewusst streng, lieber weniger als Falsches: Orte mit `access=private/customers/
 in OSM als kostenlos eingetragen, „Hilfe“ nur bei `social_facility:for=homeless/underprivileged` (nicht Tagespflege oder
 Pflegeheime), Wasserstellen nur mit Trinkwasser, saisonale Brunnen mit Hinweis.
 
-**Sammler**: gefahrene Strecken als farbige Linien und Bundesländer zum Abhaken (automatisch aus den Strecken,
+**Sammler** (runder Knopf ☰ links oben): gefahrene Strecken als farbige Linien und Bundesländer zum Abhaken (automatisch aus den Strecken,
 manuell korrigierbar). **Rundreise-Vorschlag**: „N Tage, zeig mir eine Runde durch Länder, in denen ich noch nicht war“.
 
-**Merkliste**: Favoriten, gespeicherte Touren, Reisetagebuch und Export/Import als JSON.
+**Merkliste** (runder Knopf ☰ links oben): Favoriten, gespeicherte Touren, Reisetagebuch und Export/Import als JSON.
 
 **Offline-Paket** pro Tour: Kacheln entlang der Route in Maßen (max. 400, Zoom 9–12, nur ÖPNVKarte)
 und Unterkünfte an den Übernachtungsorten.

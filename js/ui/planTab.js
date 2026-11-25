@@ -10,8 +10,8 @@ import { planTour, latestDeparture, transitArrival } from "../planner/tour.js";
 import { combineReachability } from "../planner/daytrip.js";
 import { buildReachTree } from "../planner/reachTree.js";
 import { suggestRoundtrip } from "../planner/roundtrip.js";
-import { pickBest, pickLatest } from "../planner/dticket.js";
-import { berlinToISO, fmtTime, fmtDate, fmtDuration, todayBerlin, nextWeekday, addDays } from "../lib/time.js";
+import { pickBest, pickLatest, listOptions } from "../planner/dticket.js";
+import { berlinToISO, berlinDate, fmtTime, fmtDate, fmtDuration, todayBerlin, nextWeekday, addDays } from "../lib/time.js";
 import { stateAt } from "../lib/geo.js";
 import { uid } from "../lib/store.js";
 import { STATES } from "../config.js";
@@ -432,10 +432,75 @@ function showTour(tour) {
     }
     resultBox.append(card);
   });
+  // Einfache Fahrt: gleich die Rückfahrten zum Start zeigen
+  const last = days[days.length - 1];
+  if (!params.roundtrip && last?.to) resultBox.append(returnPanel(last.to, params.start, last.itinerary?.endTime, params));
   L.marker([params.start.lat, params.start.lon], { icon: pinIcon("⌂") }).addTo(groups.route).bindPopup(params.start.name.replace(/[<>&]/g, ""));
   fitPoints(pts, 11);
   // „Letzte Verbindung“ nacheinander abfragen, um Transitous nicht zu überlasten
   (async () => { for (const job of latestQueue) await job(); })();
+}
+
+/**
+ * Rückfahrten nach einer einfachen Fahrt: die nächsten D-Ticket-Verbindungen zurück und die letzte des Tages.
+ * Standard: eine Stunde nach der Ankunft; Datum und Uhrzeit lassen sich ändern.
+ */
+function returnPanel(from, home, arrivalIso, params) {
+  const startIso = arrivalIso ? new Date(Date.parse(arrivalIso) + 3600e3).toISOString() : null;
+  const date = el("input", { type: "date", value: startIso ? berlinDate(startIso) : addDays(params.startDate, 1) });
+  const time = el("input", { type: "time", value: startIso ? fmtTime(startIso) : params.departTime || "08:00" });
+  const go = el("button", { class: "btn small primary" }, "Rückfahrten suchen");
+  const out = el("div");
+  const search = async () => {
+    clear(out).append(spinnerLine(`Suche Rückfahrten ${from.name} → ${home.name} …`));
+    try {
+      const [its, latest] = await Promise.all([
+        api.plan(from, home, berlinToISO(date.value, time.value), { numItineraries: 6 }),
+        latestDeparture(from, home, date.value, api).catch(() => null),
+      ]);
+      const opts = listOptions(its).slice(0, 5);
+      clear(out);
+      if (!opts.length) {
+        out.append(el("div", { class: "alert warn" }, `Ab ${time.value} keine D-Ticket-Verbindung an diesem Tag gefunden. Späteren Tag wählen oder den Rückweg als Tour mit Übernachtung planen.`));
+      }
+      const tooLong = opts.length && Math.min(...opts.map((o) => o.duration)) > params.maxHours * 3600;
+      if (tooLong) out.append(el("div", { class: "alert warn" }, `Der Rückweg dauert länger als dein Tageslimit von ${params.maxHours} h.`));
+      const ul = el("ul", { class: "list" });
+      for (const it of opts) {
+        const detail = el("div");
+        ul.append(el("li", { style: { flexWrap: "wrap" } },
+          el("div", { class: "grow" },
+            el("strong", {}, `${fmtTime(it.startTime)} → ${fmtTime(it.endTime)}`),
+            el("span", { class: "muted small" }, `${fmtDuration(it.duration)} · ${it.transfers ? `${it.transfers}× umsteigen` : "direkt"}${berlinDate(it.endTime) !== berlinDate(it.startTime) ? " · Ankunft am nächsten Tag" : ""}`),
+            detail),
+          el("button", { class: "btn small", onclick: () => {
+            groups.trip.clearLayers();
+            fitPoints(drawItinerary(it, groups.trip, { color: DAY_COLORS[1] }));
+            detail.replaceChildren(renderItinerary(it));
+          } }, "Details")));
+      }
+      if (opts.length) out.append(ul);
+      if (latest) out.append(el("p", { class: "small" }, `⏰ Letzte Rückfahrt an diesem Tag: ab ${fmtTime(latest.startTime)}, an ${fmtTime(latest.endTime)}.`));
+      if (!opts.length || tooLong) {
+        out.append(el("button", { class: "btn small", onclick: () => {
+          const p = { start: from, stops: [{ place: home, nights: 0 }], roundtrip: false, startDate: date.value, departTime: time.value, maxHours: params.maxHours };
+          runTour({ kind: "multi", name: `Rückweg ${from.name} – ${home.name}`, params: p });
+        } }, "Rückweg als Tour mit Übernachtung planen"));
+      }
+    } catch (e) {
+      clear(out).append(errorLine(e));
+    }
+  };
+  go.onclick = () => busy(go, search);
+  date.onchange = time.onchange = () => search();
+  search();
+  return el("div", { class: "card" },
+    el("h4", { style: { marginTop: 0 } }, `↩ Rückfahrten ${from.name} → ${home.name}`),
+    el("div", { class: "row" },
+      el("div", { class: "field" }, el("label", {}, "Datum"), date),
+      el("div", { class: "field" }, el("label", {}, "ab"), time),
+      el("div", { class: "field", style: { flex: "0 0 auto", alignSelf: "flex-end" } }, go)),
+    out);
 }
 
 export { showTour };
