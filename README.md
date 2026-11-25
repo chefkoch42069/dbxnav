@@ -146,6 +146,24 @@ manuell korrigierbar). **Rundreise-Vorschlag**: „N Tage, zeig mir eine Runde d
 **Offline-Paket** pro Tour: Kacheln entlang der Route in Maßen (max. 400, Zoom 9–12, nur ÖPNVKarte)
 und Unterkünfte an den Übernachtungsorten.
 
+## Darstellung
+
+Gestaltet nach dem Ergebnis der Experten-Runde in `docs/arena/2026-11-25-futuristisches-design.md` („Präzision statt Effekte“):
+
+- **Abfahrtstafel** wie ein Zugzielanzeiger: dunkler Block, echte Tabelle mit Spalten Zeit / Verspätung / Linie / Ziel / Gleis,
+  Zeiten in Festbreitenschrift, Verspätung als eigene Spalte („+4“, „±0“, „fällt aus“).
+- **Live-Status** über der Tafel mit Form *und* Text: ● Echtzeit, ○ nur Fahrplan, ⊘ offline – „aktualisiert vor 30 s“.
+- **Reisezeitkarte** doppelt codiert: Farbe *und* Linienstärke (kurze Fahrt = dicke Linie), Minuten an jedem Linienende,
+  dunkle Begleitlinie statt Leuchteffekt, Linien werden einmal in 200 ms eingeblendet.
+- **Raster:** 4-px-Abstände, Radius 4 px, Haarlinien statt Schatten, rechteckige Linien-Badges, Ziffern überall in fester Breite.
+- **Farben:** Weiß und fast Schwarz (lesbar in der Sonne), Grün als einzige Markenfarbe, Gelb nur für Hinweise und den Fokusring.
+- **Modi** im ☰-Menü: Automatisch / Hell / Nachtfahrplan (dunkel) und Sonnenmodus (hoher Kontrast); folgen sonst
+  `prefers-color-scheme`, `prefers-contrast` und `forced-colors`.
+- **Bedienung:** SVG-Symbole mit Text für die Navigation, gelber Fokusring, Tippflächen mindestens 44 px auf Touchgeräten,
+  Animationen nur kurz und nie bei `prefers-reduced-motion` oder im Homeless-Modus.
+- **Schrift:** Fira Sans (OFL), selbst gehostet, auf deutsche Zeichen gekürzt: zwei Schnitte zusammen 27 KB, `font-display: optional`,
+  wird bei Datensparmodus und im Homeless-Modus nicht geladen. Lizenz in `vendor/fonts/OFL-Fira-Sans.txt`.
+
 ## Karten
 
 | Ebene | Quelle | Hinweis |
@@ -164,6 +182,11 @@ Alles Konfigurierbare steht in `js/config.js`: Preisobergrenze, Verkehrsmittel, 
 Offline-Grenzen, **IC-Ausnahmestrecken** und die Knotenbahnhöfe je Bundesland für den Rundreise-Vorschlag.
 
 ## Offene Punkte
+
+- **Ladegröße:** Die App-Shell liegt bei rund 229 KB gzip (eigenes JS 117 KB) und damit über dem Budget aus der Design-Runde
+  (150 KB / 75 KB). Grund: Alle Reiter werden beim Start geladen. Nächster Schritt wäre, Reiter erst beim Öffnen zu laden
+  (`import()`) und `data/europa.geojson` nur für den Interrail-Reiter.
+- **Emoji** in Kategorien (Homeless-Modus, YouTuber, Läden) sind noch nicht durch SVG-Symbole ersetzt; sie stehen dort immer neben Text.
 
 - **IC-Ausnahmen** (IC 87 Gäubahn, IC 56 Bremen–Norddeich) sind als *ungeprüft* markiert und müssen vor jeder Saison
   bestätigt werden. Die Regeln ändern sich meist zum Fahrplanwechsel im Dezember. IC 87 führt Transitous ohnehin als Regionalverkehr.

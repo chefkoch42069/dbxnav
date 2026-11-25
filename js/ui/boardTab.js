@@ -12,6 +12,7 @@ import { prepareDepartures, MODE_GROUPS } from "../planner/departures.js";
 import { berlinToISO, fmtTime, todayBerlin, berlinDate } from "../lib/time.js";
 import { legPoints } from "../lib/polyline.js";
 import { isRide } from "../lib/legs.js";
+import { lineName } from "../planner/dticket.js";
 import { badgeFor } from "./dom.js";
 
 const FILTER_GROUPS = ["zug", "sbahn", "ubahn", "tram", "bus", "faehre"];
@@ -99,37 +100,79 @@ async function loadMore() {
     const fresh = prepareDepartures(res.stopTimes, { showLongDistance: true });
     const seen = new Set(items.map((x) => `${x.tripId}|${x.time}`));
     items.push(...fresh.filter((x) => !seen.has(`${x.tripId}|${x.time}`)));
+    fetchedAt = Date.now();
     render();
   } catch (e) {
     clear(listBox).append(errorLine(e));
   }
 }
 
+let fetchedAt = 0;
+let liveTimer = null;
+
+/** Live-Status: Form + Text (nicht nur Farbe), Zeitangabe läuft mit, pulst einmal bei neuen Daten. */
+function liveStatus() {
+  const offline = navigator.onLine === false;
+  const rt = items.some((x) => x.realTime);
+  const kind = offline ? "off" : rt ? "rt" : "plan";
+  const text = () => {
+    const sec = Math.max(0, Math.round((Date.now() - fetchedAt) / 1000));
+    const ago = sec < 60 ? `vor ${sec} s` : `vor ${Math.round(sec / 60)} min`;
+    if (kind === "off") return `Offline – gespeicherte Daten von ${ago}`;
+    return kind === "rt" ? `Echtzeit · aktualisiert ${ago}` : `Nur Fahrplan, keine Echtzeitdaten · geladen ${ago}`;
+  };
+  const label = el("span", {}, text());
+  const box = el("div", { class: `live ${kind} pulse`, role: "status" }, el("span", { class: "live-dot", "aria-hidden": "true" }), label);
+  clearInterval(liveTimer);
+  liveTimer = setInterval(() => {
+    if (!box.isConnected) return clearInterval(liveTimer);
+    if (!document.hidden) label.textContent = text(); // nur Text, keine Animation
+  }, 15000);
+  return box;
+}
+
 function render() {
   if (!station) return;
   const list = items.filter((x) => (x.dticket.ok ? active.has(x.group) : showFern));
-  const ul = el("ul", { class: "board" });
+  // Abfahrtstafel als echte Tabelle: Zeit | Verspätung | Linie | Ziel | Gleis
+  const tbody = el("tbody");
+  const table = el("table", { class: "board" },
+    el("caption", { class: "sr-only" }, `${arrivals ? "Ankünfte" : "Abfahrten"} ${station.name}`),
+    el("thead", {}, el("tr", {},
+      el("th", { class: "c-time", scope: "col" }, "Zeit"),
+      el("th", { class: "c-delay", scope: "col" }, "+/−"),
+      el("th", { class: "c-line", scope: "col" }, "Linie"),
+      el("th", { scope: "col" }, arrivals ? "Von" : "Nach"),
+      el("th", { class: "c-track", scope: "col" }, "Gleis"))),
+    tbody);
   let lastDay = null;
   for (const x of list) {
     const day = berlinDate(x.time);
-    if (lastDay && day !== lastDay) ul.append(el("li", { class: "muted small", style: { cursor: "default", display: "block" } }, `— ${day.split("-").reverse().join(".")} —`));
+    if (lastDay && day !== lastDay) tbody.append(el("tr", { class: "day" }, el("td", { colspan: "5" }, day.split("-").reverse().join("."))));
     lastDay = day;
     const other = arrivals ? x.tripFrom?.name : x.headsign || x.tripTo?.name;
-    ul.append(el("li", { class: x.dticket.ok ? null : "off", title: x.dticket.note || "", onclick: () => showTrip(x) },
-      el("span", { class: "t" }, fmtTime(x.time),
-        x.delayMin != null ? el("span", { class: `delay ${x.delayMin <= 0 ? "ontime" : ""}` }, x.delayMin > 0 ? `+${x.delayMin}` : "pünktl.") : null,
-        x.cancelled || x.tripCancelled ? el("span", { class: "delay" }, "fällt aus") : null),
-      badgeFor(x),
-      el("span", { class: "dest" }, arrivals ? "von " : "", other || "–",
+    const cancelled = x.cancelled || x.tripCancelled;
+    const delay = cancelled ? el("span", { class: "delay x" }, "fällt aus")
+      : x.delayMin == null ? null
+      : el("span", { class: `delay ${x.delayMin <= 0 ? "ontime" : ""}` }, x.delayMin > 0 ? `+${x.delayMin}` : "±0");
+    const row = el("tr", { class: `dep${x.dticket.ok ? "" : " off"}`, tabindex: "0", title: x.dticket.note || "" },
+      el("td", { class: "t" }, fmtTime(x.time)),
+      el("td", {}, delay),
+      el("td", {}, badgeFor(x)),
+      el("td", { class: "dest" }, other || "–",
         x.stopName && station && x.stopName !== station.name ? el("span", { class: "muted small", style: { display: "block" } }, x.stopName) : null,
         x.dticket.note ? el("span", { class: `note ${x.dticket.level}`, style: { display: "block" } }, x.dticket.note) : null),
-      el("span", { class: "track" }, trackLabel(x.track))));
+      el("td", { class: "track" }, trackLabel(x.track).replace(/^Gl\. /, "")));
+    row.addEventListener("click", () => showTrip(x));
+    row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); showTrip(x); } });
+    tbody.append(row);
   }
   const counts = FILTER_GROUPS.map((g) => [g, items.filter((x) => x.dticket.ok && x.group === g).length]).filter(([, n]) => n);
   clear(listBox).append(
+    liveStatus(),
     el("p", { class: "muted small" }, items.length ? `Verkehrsmittel hier: ${counts.map(([g, n]) => `${MODE_GROUPS[g].label} (${n})`).join(", ") || "–"}` : ""),
-    list.length ? ul : el("p", { class: "muted" }, "Keine passenden Fahrten. Filter prüfen oder später laden."),
-    nextCursor ? el("button", { class: "btn block", onclick: (e) => { e.currentTarget.disabled = true; loadMore(); } }, "Spätere laden") : null,
+    list.length ? table : el("p", { class: "muted" }, "Keine passenden Fahrten. Filter prüfen oder später laden."),
+    ...(nextCursor ? [el("button", { class: "btn block", onclick: (e) => { e.currentTarget.disabled = true; loadMore(); } }, "Spätere laden")] : []),
     el("p", { class: "muted small" }, "Fahrplandaten: Transitous. Tipp: Rechtsklick/langes Drücken auf die Karte wählt die nächste Haltestelle."));
 }
 

@@ -11,6 +11,7 @@ import { SHOP_CATS, placeShops, pickMainStation } from "../planner/city.js";
 import { ohDe } from "../planner/budget.js";
 import { hikingPanel, libraryPanel, sightsPanel, lodgingPanel, bookingPanel, lazyDetails } from "./details.js";
 import { linesBlock } from "./transitClick.js";
+import { applyDisplay } from "./display.js";
 import { distanceKm } from "../lib/geo.js";
 
 const RADIUS_M = 500;
@@ -29,6 +30,7 @@ let lastPlace = null;
 
 function setAddon(k, on) {
   setPref("addons", { ...(state.prefs.addons || {}), [k]: on });
+  applyDisplay(); // Homeless-Modus: keine Webfont, keine Animation
   addonChips[k]?.setAttribute("aria-pressed", String(on));
   if (addonSections[k]) addonSections[k].hidden = !on;
   if (!on) (k === "youtuber" ? groups.infra : groups.homeless).clearLayers();
