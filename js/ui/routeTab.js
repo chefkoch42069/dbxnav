@@ -4,6 +4,7 @@ import { el, clear, toast, busy, spinnerLine, errorLine, badgeFor, bahnLink, dur
 import { stopList } from "./stopList.js";
 import { placeInput } from "./placeInput.js";
 import { renderItinerary, sightsPanel, lazyDetails } from "./details.js";
+import { returnPanel } from "./tourView.js";
 import { budgetPanel } from "./budgetTab.js";
 import { groups, drawItinerary, fitPoints, pinIcon, DAY_COLORS } from "./map.js";
 import { nav } from "./nav.js";
@@ -308,12 +309,14 @@ function details(it, q) {
   });
   box.append(
     el("div", { class: "btns" },
-      el("button", { class: "btn small", onclick: () => nav.route.open({ from: q.to, to: q.from }) }, "⇄ Rückfahrt"),
+      el("button", { class: "btn small", title: "Ganze Suche umdrehen", onclick: () => nav.route.open({ from: q.to, to: q.from }) }, "⇄ Als neue Suche"),
       lastBtn,
       el("a", { class: "btn small", href: bahnLink(q.from, q.to, it.startTime), target: "_blank", rel: "noopener", title: "Im DB Navigator „Nur Nahverkehr“ wählen" }, "Bei DB gegenprüfen"),
       doneBtn,
       el("button", { class: "btn small", onclick: () => nav.board.open(q.from) }, "Abfahrten")),
-    lastBox);
+    lastBox,
+    // Nach der einfachen Fahrt gleich die Rückfahrten – mit denselben Optionen (Umstiege, nur Bahn …)
+    ...(s.ok ? [returnPanel(q.to, q.from, s.arr, { api: apiWith(q.opts) })] : []));
   return box;
 }
 
@@ -380,7 +383,8 @@ async function runMulti(q) {
         r.ok ? el("span", { class: "chip static" }, `an ${fmtTime(r.arrival)}`) : el("span", { class: "chip static" }, "unvollständig"),
         total ? el("span", { class: "chip static" }, `${total} insgesamt`) : null,
         el("span", { class: "chip static" }, `${fmtDuration(r.totalStayMin * 60)} Aufenthalt`))),
-    ...body);
+    ...body,
+    ...(r.ok ? [returnPanel(q.to, q.from, r.arrival, { api: apiWith(q.opts) })] : []));
   if (pts.length) fitPoints(pts, 12);
   document.getElementById("panel").scrollTop = resultBox.offsetTop - 10;
 }

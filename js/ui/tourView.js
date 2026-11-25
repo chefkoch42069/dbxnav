@@ -1,12 +1,12 @@
 // Anzeige einer geplanten Tour (Tageskarten, Karte, Übernachtungen) – für D-Ticket und Interrail.
-import { el, clear, busy, toast, bahnLink, plain } from "./dom.js";
+import { el, clear, busy, toast, bahnLink, plain, spinnerLine, errorLine } from "./dom.js";
 import { renderItinerary, weatherChip, lodgingPanel, bookingPanel, stationPanel, sightsPanel, hikingPanel, libraryPanel, lazyDetails } from "./details.js";
 import { groups, drawItinerary, fitPoints, pinIcon, DAY_COLORS } from "./map.js";
 import { nav } from "./nav.js";
 import { state, saveTour, addJournal } from "../state.js";
 import { latestDeparture, transitArrival } from "../planner/tour.js";
-import { DTICKET_RULES } from "../planner/dticket.js";
-import { fmtTime, fmtDate, fmtDuration } from "../lib/time.js";
+import { DTICKET_RULES, listOptions } from "../planner/dticket.js";
+import { fmtTime, fmtDate, fmtDuration, berlinToISO, berlinDate, addDays } from "../lib/time.js";
 import { addItineraryToCollector } from "../collector.js";
 import { budgetPanel } from "./budgetTab.js";
 import { prefetchTour } from "../offline.js";
@@ -111,9 +111,75 @@ export function renderTour(resultBox, tour, { rules = DTICKET_RULES, api, replan
     }
     resultBox.append(card);
   });
+  // Einfache Fahrt: gleich die Rückfahrten zum Start zeigen
+  const last = days[days.length - 1];
+  if (!params.roundtrip && last?.to) {
+    resultBox.append(returnPanel(last.to, params.start, last.itinerary?.endTime, {
+      rules, api, maxHours: params.maxHours, fallbackDate: addDays(lastDate, 1), fallbackTime: params.departTime,
+      onPlanTour: replan && ((date, time) => replan({ start: last.to, stops: [{ place: params.start, nights: 0 }], roundtrip: false, startDate: date, departTime: time, maxHours: params.maxHours })),
+    }));
+  }
   L.marker([params.start.lat, params.start.lon], { icon: pinIcon("⌂") }).addTo(groups.route).bindPopup(plain(params.start.name));
   fitPoints(pts, 11);
   // „Letzte Verbindung“ nacheinander abfragen, um Transitous nicht zu überlasten
   (async () => { for (const job of latestQueue) await job(); })();
 }
 
+/**
+ * Rückfahrten nach einer einfachen Fahrt: die nächsten passenden Verbindungen zurück und die letzte des Tages.
+ * Standard: eine Stunde nach der Ankunft; Datum und Uhrzeit lassen sich ändern.
+ */
+export function returnPanel(from, home, arrivalIso, { rules = DTICKET_RULES, api, maxHours = null, fallbackDate = null, fallbackTime = "08:00", onPlanTour = null } = {}) {
+  const startIso = arrivalIso ? new Date(Date.parse(arrivalIso) + 3600e3).toISOString() : null;
+  const date = el("input", { type: "date", value: startIso ? berlinDate(startIso) : fallbackDate });
+  const time = el("input", { type: "time", value: startIso ? fmtTime(startIso) : fallbackTime });
+  const go = el("button", { class: "btn small primary" }, "Rückfahrten suchen");
+  const out = el("div");
+  const search = async () => {
+    clear(out).append(spinnerLine(`Suche Rückfahrten ${from.name} → ${home.name} …`));
+    try {
+      const [its, latest] = await Promise.all([
+        api.plan(from, home, berlinToISO(date.value, time.value), { ...rules.planOpts, numItineraries: 6 }),
+        latestDeparture(from, home, date.value, api, "23:59", rules).catch(() => null),
+      ]);
+      const opts = listOptions(its, rules.checkItinerary).slice(0, 5);
+      clear(out);
+      if (!opts.length) {
+        out.append(el("div", { class: "alert warn" }, `Ab ${time.value} keine D-Ticket-Verbindung an diesem Tag gefunden. Späteren Tag wählen oder den Rückweg als Tour mit Übernachtung planen.`));
+      }
+      const tooLong = Boolean(maxHours && opts.length && Math.min(...opts.map((o) => o.duration)) > maxHours * 3600);
+      if (tooLong) out.append(el("div", { class: "alert warn" }, `Der Rückweg dauert länger als dein Tageslimit von ${maxHours} h.`));
+      const ul = el("ul", { class: "list" });
+      for (const it of opts) {
+        const detail = el("div");
+        ul.append(el("li", { style: { flexWrap: "wrap" } },
+          el("div", { class: "grow" },
+            el("strong", {}, `${fmtTime(it.startTime)} → ${fmtTime(it.endTime)}`),
+            el("span", { class: "muted small" }, `${fmtDuration(it.duration)} · ${it.transfers ? `${it.transfers}× umsteigen` : "direkt"}${berlinDate(it.endTime) !== berlinDate(it.startTime) ? " · Ankunft am nächsten Tag" : ""}`),
+            detail),
+          el("button", { class: "btn small", onclick: () => {
+            groups.trip.clearLayers();
+            fitPoints(drawItinerary(it, groups.trip, { color: DAY_COLORS[1] }));
+            detail.replaceChildren(renderItinerary(it, rules));
+          } }, "Details")));
+      }
+      if (opts.length) out.append(ul);
+      if (latest) out.append(el("p", { class: "small" }, `⏰ Letzte Rückfahrt an diesem Tag: ab ${fmtTime(latest.startTime)}, an ${fmtTime(latest.endTime)}.`));
+      if (onPlanTour && (!opts.length || tooLong)) {
+        out.append(el("button", { class: "btn small", onclick: () => onPlanTour(date.value, time.value) }, "Rückweg als Tour mit Übernachtung planen"));
+      }
+    } catch (e) {
+      clear(out).append(errorLine(e));
+    }
+  };
+  go.onclick = () => busy(go, search);
+  date.onchange = time.onchange = () => search();
+  search();
+  return el("div", { class: "card" },
+    el("h4", { style: { marginTop: 0 } }, `↩ Rückfahrten ${from.name} → ${home.name}`),
+    el("div", { class: "row" },
+      el("div", { class: "field" }, el("label", {}, "Datum"), date),
+      el("div", { class: "field" }, el("label", {}, "ab"), time),
+      el("div", { class: "field", style: { flex: "0 0 auto", alignSelf: "flex-end" } }, go)),
+    out);
+}

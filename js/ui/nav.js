@@ -4,7 +4,7 @@ export const nav = {
   plan: { setStart: () => {}, addStop: () => {}, openTour: () => {}, suggestRoundtrip: () => {} },
   board: { open: () => {} },
   route: { open: () => {} },
-  budget: { open: () => {} },
+  budget: { open: () => {}, search: () => {} },
   interrail: { addStop: () => {}, openTour: () => {} },
-  city: { open: () => {} },
+  city: { open: () => {}, attachAddon: () => {}, showAddon: () => {} },
 };

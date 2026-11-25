@@ -168,7 +168,7 @@ export function initBudgetTab(root) {
   };
   // Tippen auf die Karte, während der Reiter offen ist: dort suchen
   map.on("click", (e) => {
-    if (root.hidden) return;
+    if (root.closest("[hidden]")) return; // nur, wenn der Modus im Stadt-Reiter sichtbar ist
     search({ name: "Punkt auf der Karte", lat: e.latlng.lat, lon: e.latlng.lng });
   });
 
@@ -202,8 +202,8 @@ export function initBudgetTab(root) {
     notes = [];
     items = [];
     where.value = p;
-    groups.places.clearLayers();
-    L.marker([p.lat, p.lon], { icon: pinIcon("●") }).addTo(groups.places);
+    groups.homeless.clearLayers();
+    L.marker([p.lat, p.lon], { icon: pinIcon("●") }).addTo(groups.homeless);
 
     let bb = bounds;
     let budgetRadius = null;
@@ -260,7 +260,8 @@ export function initBudgetTab(root) {
     render();
   }
 
-  nav.budget.open = (p) => { nav.switchTab("budget"); search(p); };
+  nav.budget.open = (p) => { nav.city.showAddon("homeless"); search(p); };
+  nav.budget.search = (p) => search(p);
 
   root.append(
     el("h2", {}, TAB_NAME),
@@ -277,10 +278,10 @@ export function initBudgetTab(root) {
 
   function render(fit = false) {
     if (!center) return;
-    groups.places.clearLayers();
-    if (city) for (const ring of city.outline) L.polyline(ring, { color: "#1b4f9c", weight: 3, dashArray: "8 6", opacity: 0.8, interactive: false }).addTo(groups.places);
+    groups.homeless.clearLayers();
+    if (city) for (const ring of city.outline) L.polyline(ring, { color: "#1b4f9c", weight: 3, dashArray: "8 6", opacity: 0.8, interactive: false }).addTo(groups.homeless);
     const list = items.filter((it) => active.has(it.c.cat) && (!onlyFree || it.c.free));
-    L.marker([center.lat, center.lon], { icon: pinIcon("●") }).addTo(groups.places).bindPopup(plain(center.name));
+    L.marker([center.lat, center.lon], { icon: pinIcon("●") }).addTo(groups.homeless).bindPopup(plain(center.name));
     const byCat = {};
     for (const it of list) (byCat[it.c.cat] ||= []).push(it);
     if (byCat.park) byCat.park.sort((a, b) => b.ha - a.ha); // größte Parks zuerst
@@ -296,10 +297,10 @@ export function initBudgetTab(root) {
       const ul = el("ul", { class: "list" });
       arr.slice(0, 15).forEach((it) => {
         const m = marker(it).bindPopup(() => popup(it, center));
-        groups.places.addLayer(m);
+        groups.homeless.addLayer(m);
         ul.append(itemRow(it, center, m));
       });
-      arr.slice(15).forEach((it) => groups.places.addLayer(marker(it).bindPopup(() => popup(it, center))));
+      arr.slice(15).forEach((it) => groups.homeless.addLayer(marker(it).bindPopup(() => popup(it, center))));
       frag.push(el("h3", {}, `${CATS[k].icon} ${CATS[k].label} (${arr.length})`), ul);
     }
     if (!list.length && !loading) frag.push(el("p", { class: "muted" }, items.length ? "Mit diesen Filtern nichts gefunden." : "Hier ist in OSM nichts eingetragen. Größeres Gebiet probieren."));

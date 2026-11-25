@@ -1,5 +1,5 @@
 // Service Worker: App offline verfügbar, Kacheln zwischenspeichern (begrenzt), API-Antworten als Rückfall.
-const VERSION = "v15";
+const VERSION = "v16";
 const SHELL = `shell-${VERSION}`;
 const TILES = "tiles";
 const API = "api";
