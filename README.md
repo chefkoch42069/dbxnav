@@ -215,3 +215,8 @@ tests/                node:test
 ```
 
 Daten: © OpenStreetMap-Mitwirkende, Fahrpläne über [Transitous](https://transitous.org), Wetter: Deutscher Wetterdienst.
+
+### YouTuber-Modus: Tempo und Brücken
+- **Tempo Bahn:** Strecken farbig nach Höchstgeschwindigkeit (OSM `maxspeed`), Filter aus/alle/ab 100/160/200/250/300 km/h.
+- **Tempo Autobahn:** nur Autobahnen (`highway=motorway`), Filter alle / nur unbegrenzt / ≥ 130 / ≤ 120 / ≤ 100 / variabel. `maxspeed=none` und `DE:motorway` gelten als unbegrenzt.
+- **Brücken:** Straßenbrücken nur noch, wenn sie Autobahnbrücken sind, über eine Autobahn führen oder mindestens 80 m hoch sind (`height`). Eisenbahnbrücken und Viadukte bleiben. Filter „nur ≥ 80 m“ und „nur über Autobahnen“.

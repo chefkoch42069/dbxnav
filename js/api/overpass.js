@@ -330,12 +330,18 @@ out center tags;`;
 
 // ---- YouTuber-Modus: Infrastruktur im Kartenausschnitt ----
 export function infraQuery(bbox, withLines = false) {
-  return `[out:json][timeout:25][bbox:${bbox}];
+  // Reihenfolge der Ausgabe: Punkte · Marker „over“ · Brücken über Autobahnen · Marker „speed“ · Tempo-Linien · (Leitungen)
+  return `[out:json][timeout:30][bbox:${bbox}];
+way["highway"="motorway"]->.mw;
 (
+  way["bridge"]["height"];
+  way["man_made"="bridge"]["height"];
+  way["bridge"]["highway"="motorway"]["name"];
   nwr["power"~"^(plant|substation)$"];
   node["power"="generator"]["generator:source"="wind"];
   way["man_made"="bridge"]["name"];
   way["bridge"="viaduct"];
+  way["bridge"]["railway"]["name"];
   way["bridge"]["bridge:name"];
   way["tunnel"]["tunnel:name"];
   way["railway"]["tunnel"="yes"]["name"];
@@ -349,7 +355,18 @@ export function infraQuery(bbox, withLines = false) {
   nwr["abandoned:railway"="station"];
   nwr["disused:railway"="station"];
 );
-out center tags;${withLines ? `
+out center tags;
+make marker part="over"; out;
+way(around.mw:2)["bridge"]["highway"]["highway"!="motorway"];
+way(around.mw:2)["bridge"]["railway"];
+out center tags;
+make marker part="speed"; out;
+(
+  way["railway"~"^(rail|light_rail)$"]["maxspeed"]["service"!~"."];
+  .mw;
+);
+out tags geom;
+make marker part="lines"; out;${withLines ? `
 (
   way["power"="line"];
   way["railway"~"^(abandoned|disused)$"];
@@ -360,11 +377,28 @@ out tags geom;` : ""}`;
 /** Infrastruktur im Rechteck „süd,west,nord,ost“: Punkte (mit Mittelpunkt) und Linien (mit Verlauf). */
 export async function infraPlaces(center, bbox, { withLines = false } = {}) {
   const res = await query(infraQuery(bbox, withLines));
-  const points = [], lines = [];
+  return splitInfra(res, center);
+}
+
+/** Antwort nach den Markern aufteilen (siehe infraQuery). Exportiert für Tests. */
+export function splitInfra(res, center) {
+  const points = [], lines = [], speed = [];
+  const seen = new Map();
+  let part = "points";
   for (const e of res?.elements || []) {
-    // Nur die Linien-Abfrage liefert „geom“, die Punkte kommen mit „center“.
-    if (e.geometry) lines.push({ id: `${e.type}/${e.id}`, tags: e.tags || {}, coords: e.geometry.map((p) => [p.lat, p.lon]) });
-    else points.push(e);
+    if (e.type === "marker") { part = e.tags?.part || part; continue; }
+    const id = `${e.type}/${e.id}`;
+    if (part === "over") {
+      // Brücke über eine Autobahn: als solche markieren (auch wenn sie schon als Punkt kam)
+      const tags = { ...(e.tags || {}), _overMotorway: true };
+      if (seen.has(id)) Object.assign(seen.get(id).tags, { _overMotorway: true });
+      else { const x = { ...e, tags }; seen.set(id, x); points.push(x); }
+      continue;
+    }
+    if (part === "points") { if (!seen.has(id)) { const x = { ...e, tags: { ...(e.tags || {}) } }; seen.set(id, x); points.push(x); } continue; }
+    const coords = (e.geometry || []).map((p) => [p.lat, p.lon]);
+    if (part === "speed") speed.push({ id, tags: e.tags || {}, coords });
+    else lines.push({ id, tags: e.tags || {}, coords });
   }
-  return { points: elements({ elements: points }, center), lines };
+  return { points: elements({ elements: points }, center), lines, speed };
 }

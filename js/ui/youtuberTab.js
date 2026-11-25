@@ -1,13 +1,13 @@
 // Reiter „YouTuber-Modus“: Karten öffentlicher Infrastruktur und Drehorte im Kartenausschnitt –
 // Bahn (Strecken, Tempo, Signale, Oberleitung), Wasserstraßen, Strom, Brücken, Tunnel, Türme, Lost Places.
-import { el, clear, toast, spinnerLine, errorLine, extLink, osmLink } from "./dom.js";
+import { el, clear, toast, spinnerLine, errorLine, extLink, osmLink, optionSelect, plain } from "./dom.js";
 import { map, groups, focusOn, setBase, emojiIcon } from "./map.js";
 import { nav } from "./nav.js";
 import { addFavorite } from "../state.js";
 import { INFRA_LAYERS } from "../config.js";
 import { infraPlaces } from "../api/overpass.js";
 import { reverseStop } from "../api/transitous.js";
-import { INFRA_CATS, classifyInfra, infraTitle, mergeSegments, maxKv } from "../planner/infra.js";
+import { INFRA_CATS, classifyInfra, infraTitle, mergeSegments, maxKv, classifySpeed, speedVisible, speedColor, parseHeight, HIGH_BRIDGE_M } from "../planner/infra.js";
 import { distanceKm } from "../lib/geo.js";
 
 const MIN_ZOOM = 12; // Punkte
@@ -17,6 +17,9 @@ const layers = {};
 let active = new Set(ORDER);
 let items = [];
 let lines = [];
+let speedLines = [];
+const speedFilter = { railMin: 160, motorway: "all" };
+const bridgeFilter = { high: false, over: false };
 let resultBox;
 
 const wikiLink = (w) => {
@@ -50,6 +53,27 @@ export function initYoutuberTab(root) {
   } }, INFRA_CATS[k].icon, " ", INFRA_CATS[k].label));
   resultBox = el("div");
 
+  // --- Tempo-Filter (Bahn: Höchstgeschwindigkeit, Autobahn inkl. „unbegrenzt“)
+  const railSel = optionSelect([[-1, "aus"], [0, "alle Strecken"], [100, "ab 100 km/h"], [160, "ab 160 km/h"], [200, "ab 200 km/h"], [250, "ab 250 km/h"], [300, "ab 300 km/h"]], speedFilter.railMin,
+    { id: "yt-rail", onchange: (e) => { speedFilter.railMin = +e.target.value; render(); } });
+  const mwSel = optionSelect([["off", "aus"], ["all", "alle Autobahnen"], ["none", "nur unbegrenzt"], ["130+", "130 km/h und mehr / unbegrenzt"], ["le120", "begrenzt auf 120 oder weniger"], ["le100", "begrenzt auf 100 oder weniger"], ["var", "variabel (Anzeigetafeln)"]], speedFilter.motorway,
+    { id: "yt-mw", onchange: (e) => { speedFilter.motorway = e.target.value; render(); } });
+  const bridgeHigh = el("input", { type: "checkbox", onchange: (e) => { bridgeFilter.high = e.target.checked; render(); } });
+  const bridgeOver = el("input", { type: "checkbox", onchange: (e) => { bridgeFilter.over = e.target.checked; render(); } });
+  const tempoBox = el("div", { class: "card" },
+    el("strong", {}, "🚄 Tempo"),
+    el("div", { class: "row" },
+      el("div", { class: "field" }, el("label", { for: "yt-rail" }, "Bahnstrecken"), railSel),
+      el("div", { class: "field" }, el("label", { for: "yt-mw" }, "Autobahnen"), mwSel)),
+    el("div", { class: "legend small" },
+      ...[["#b71c1c", "≥ 250"], ["#e53935", "≥ 200"], ["#fb8c00", "≥ 160"], ["#fdd835", "≥ 120"], ["#7cb342", "≥ 80 km/h Bahn"]].map(([c, t]) => el("span", { style: { marginRight: "8px" } }, el("i", { style: { background: c } }), t))),
+    el("div", { class: "legend small", style: { marginTop: "4px" } },
+      ...[["#1565c0", "unbegrenzt"], ["#2e7d32", "≥ 130"], ["#f9a825", "100–120"], ["#e65100", "< 100"], ["#8e24aa", "variabel"], ["#9e9e9e", "unbekannt"]].map(([c, t]) => el("span", { style: { marginRight: "8px" } }, el("i", { style: { background: c } }), t))),
+    el("p", { class: "muted small", style: { margin: "6px 0 0" } }, "Nur Autobahnen, keine anderen Straßen. „Unbegrenzt“ = ohne Tempolimit (Richtgeschwindigkeit 130)."),
+    el("strong", { style: { display: "block", marginTop: "10px" } }, "🌉 Brücken"),
+    el("label", { class: "check small" }, bridgeHigh, `nur sehr hohe Brücken (≥ ${HIGH_BRIDGE_M} m)`),
+    el("label", { class: "check small" }, bridgeOver, "nur Brücken über Autobahnen"));
+
   root.append(
     el("h2", {}, "YouTuber-Modus"),
     el("p", { class: "lead" }, "Öffentliche Infrastruktur auf der Karte: für Drehorte, Recherche und Hintergrundwissen."),
@@ -61,6 +85,7 @@ export function initYoutuberTab(root) {
     el("h3", {}, "Drehorte & Bauwerke"),
     el("p", { class: "muted small" }, `Kraftwerke, Umspannwerke, Windräder, Brücken, Tunnel, Staudämme, Schleusen, Türme, Stellwerke, Drehscheiben, Bunker und verlassene Bahnhöfe aus OpenStreetMap. Ab Zoom ${LINE_ZOOM} auch Hochspannungsleitungen und stillgelegte Bahnstrecken.`),
     searchBtn,
+    tempoBox,
     el("div", { class: "chips", role: "group", "aria-label": "Kategorien", style: { marginTop: "8px" } }, chips),
     resultBox,
     el("details", { class: "tips" }, el("summary", {}, "⚠️ Recht & Sicherheit beim Drehen"),
@@ -83,6 +108,7 @@ export function initYoutuberTab(root) {
       const raw = res.points.map((e) => { const c = classifyInfra(e.tags); return c ? { ...e, ...c, title: infraTitle(e.tags, c.kind) } : null; }).filter(Boolean);
       items = mergeSegments(raw, distanceKm);
       lines = res.lines.map((l) => ({ ...l, info: classifyInfra(l.tags) })).filter((l) => l.info);
+      speedLines = res.speed.map((l) => { const s = classifySpeed(l.tags); return s ? { ...l, ...s } : null; }).filter(Boolean);
       render();
     } catch (e) {
       clear(resultBox).append(errorLine(e));
@@ -124,15 +150,31 @@ function lineStyle(l) {
   return { color: "#6d4c41", weight: 3, dashArray: "6 6", opacity: 0.85 }; // stillgelegte Bahn
 }
 
+const lineKm = (c) => { let s = 0; for (let i = 1; i < c.length; i++) s += distanceKm({ lat: c[i - 1][0], lon: c[i - 1][1] }, { lat: c[i][0], lon: c[i][1] }); return s; };
+
+function bridgeOk(it) {
+  if (it.cat !== "bridge") return true;
+  if (bridgeFilter.high && !((parseHeight(it.tags.height) || 0) >= HIGH_BRIDGE_M)) return false;
+  if (bridgeFilter.over && !it.tags._overMotorway) return false;
+  return true;
+}
+
 function render() {
   groups.infra.clearLayers();
+  // Tempo-Linien unter den Markern
+  const shownSpeed = speedLines.filter((l) => speedVisible(l, speedFilter));
+  for (const l of shownSpeed) {
+    L.polyline(l.coords, { color: speedColor(l), weight: l.kind === "motorway" ? 5 : 4, opacity: 0.9 })
+      .bindTooltip(plain([l.kind === "motorway" ? `Autobahn ${l.ref || ""}`.trim() : `Bahn ${l.ref || ""}`.trim(), l.label].join(" · ")), { sticky: true })
+      .addTo(groups.infra);
+  }
   for (const l of lines) {
     if (!active.has(l.info.cat)) continue;
     L.polyline(l.coords, lineStyle(l))
       .bindTooltip([l.tags.name, l.info.kind, ...l.info.facts].filter(Boolean).join(" · "), { sticky: true })
       .addTo(groups.infra);
   }
-  const list = items.filter((it) => active.has(it.cat));
+  const list = items.filter((it) => active.has(it.cat) && bridgeOk(it));
   const markers = new Map();
   for (const it of list) {
     const m = L.marker([it.lat, it.lon], {
@@ -145,7 +187,11 @@ function render() {
   const byCat = {};
   for (const it of list) (byCat[it.cat] ||= []).push(it);
   const lineCount = (cat) => lines.filter((l) => l.info.cat === cat && active.has(cat)).length;
-  const frag = [el("p", { class: "muted small" },
+  const mwKm = (pred) => Math.round(shownSpeed.filter(pred).reduce((sum, l) => sum + lineKm(l.coords), 0));
+  const tempoInfo = speedLines.length ? el("p", { class: "small" },
+    `Tempo im Ausschnitt: ${mwKm((l) => l.kind === "rail")} km Bahnstrecke und ${mwKm((l) => l.kind === "motorway")} km Autobahn sichtbar`,
+    speedLines.some((l) => l.kind === "motorway" && l.speed === Infinity) ? ` · davon ${mwKm((l) => l.kind === "motorway" && l.speed === Infinity)} km unbegrenzt` : "") : null;
+  const frag = [tempoInfo, el("p", { class: "muted small" },
     ORDER.filter((k) => byCat[k] || lineCount(k)).map((k) => `${INFRA_CATS[k].icon} ${(byCat[k] || []).length}${lineCount(k) ? ` + ${lineCount(k)} Linien` : ""}`).join("  ") || "Hier ist nichts davon in OSM eingetragen.")];
   if (lines.some((l) => l.info.cat === "power")) frag.push(el("p", { class: "small" }, "Leitungen: ", el("span", { style: { color: "#c62828", fontWeight: 700 } }, "━ 220/380 kV"), "  ", el("span", { style: { color: "#ef6c00", fontWeight: 700 } }, "━ 110 kV"), "  ", el("span", { style: { color: "#8d6e63", fontWeight: 700 } }, "━ darunter"), "  ", el("span", { style: { color: "#6d4c41" } }, "┅ stillgelegte Bahn")));
   for (const k of ORDER) {
