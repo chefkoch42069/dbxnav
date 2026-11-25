@@ -45,6 +45,14 @@ export const BASE_LAYERS = {
     // FOSSGIS-Kacheln: für den Eigengebrauch ok, vor einer Weitergabe der App beim Betreiber nachfragen.
     allowPrefetch: false,
   },
+  Satellit: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    options: {
+      maxZoom: 19,
+      attribution: 'Luftbild: Esri, Maxar, Earthstar Geographics und GIS-Community',
+    },
+    allowPrefetch: false,
+  },
   "ÖPNVKarte": {
     url: "https://tileserver.memomaps.de/tilegen/{z}/{x}/{y}.png",
     options: {

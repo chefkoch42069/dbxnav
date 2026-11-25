@@ -1,5 +1,5 @@
 // Service Worker: App offline verfügbar, Kacheln zwischenspeichern (begrenzt), API-Antworten als Rückfall.
-const VERSION = "v18";
+const VERSION = "v19";
 const SHELL = `shell-${VERSION}`;
 const TILES = "tiles";
 const API = "api";
@@ -21,7 +21,7 @@ const SHELL_FILES = [
   "js/ui/planTab.js", "js/ui/budgetTab.js", "js/ui/boardTab.js", "js/ui/collectTab.js", "js/ui/savedTab.js", "js/ui/cityTab.js", "js/ui/youtuberTab.js", "js/ui/transitClick.js", "js/ui/display.js", "js/ui/interrailTab.js", "js/ui/tourView.js", "js/ui/routeTab.js", "js/ui/stopList.js", "js/ui/timeScale.js",
 ];
 
-const TILE_HOSTS = ["tile.openstreetmap.de", "tileserver.memomaps.de", "tiles.openrailwaymap.org", "tile.waymarkedtrails.org", "tiles.openseamap.org"];
+const TILE_HOSTS = ["tile.openstreetmap.de", "tileserver.memomaps.de", "tiles.openrailwaymap.org", "server.arcgisonline.com", "tile.waymarkedtrails.org", "tiles.openseamap.org"];
 const API_HOSTS = ["api.transitous.org", "overpass-api.de", "overpass.private.coffee", "overpass.kumi.systems", "maps.mail.ru", "api.brightsky.dev", "nominatim.openstreetmap.org"];
 
 self.addEventListener("install", (e) => {
