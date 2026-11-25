@@ -2,6 +2,7 @@
 // und Touren mit derselben Planung wie beim D-Ticket (Etappen, letzte Verbindung, Unterkünfte).
 import { el, clear, busy, toast, spinnerLine, errorLine, extLink, durationSelect, optionSelect, DURATIONS, plain } from "./dom.js";
 import { stopList } from "./stopList.js";
+import { flightPanel } from "./flightPanel.js";
 import { timeScale } from "./timeScale.js";
 import { cityName } from "../planner/booking.js";
 import { placeInput } from "./placeInput.js";
@@ -131,6 +132,9 @@ export function initInterrailTab(root) {
     el("label", { class: "check small" }, noRes, "Reservierungspflichtige Züge meiden (TGV, AVE, Frecciarossa …)"),
     go,
     resultBox,
+    el("hr"),
+    flightPanel(),
+    el("hr"),
     el("details", {}, el("summary", {}, "Regeln & Tipps"),
       el("ul", { class: "small" },
         el("li", {}, "Im Wohnland gilt der Pass nur für eine Fahrt hinaus und eine zurück – dazwischen z. B. mit dem D-Ticket fahren."),
