@@ -438,3 +438,44 @@ test("listOptions: Rückfahrten ohne Doppelte, ohne überholte, ohne Fernverkehr
   assert.deepEqual(opts.map((o) => o.startTime.slice(11, 16)), ["09:00", "10:00", "11:00"]);
   assert.deepEqual(listOptions([]), []);
 });
+
+test("YouTuber: Tempo Bahn und Autobahn, Brücken-Regeln, Antwort aufteilen", async () => {
+  const { parseSpeed, parseHeight, classifySpeed, speedVisible, classifyInfra } = await import("../js/planner/infra.js");
+  const { splitInfra } = await import("../js/api/overpass.js");
+  assert.equal(parseSpeed("none"), Infinity);
+  assert.equal(parseSpeed("DE:motorway"), Infinity);
+  assert.equal(parseSpeed("signals"), "variabel");
+  assert.equal(parseSpeed("120;80"), 120);
+  assert.equal(parseSpeed("60 mph"), 97);
+  assert.equal(parseHeight("82.5 m"), 83);
+  const bahn = classifySpeed({ railway: "rail", maxspeed: "300" });
+  const frei = classifySpeed({ highway: "motorway", maxspeed: "none", ref: "A 9" });
+  const t120 = classifySpeed({ highway: "motorway", maxspeed: "120" });
+  assert.equal(frei.label, "unbegrenzt");
+  assert.equal(classifySpeed({ highway: "primary", maxspeed: "100" }), null); // keine normalen Straßen
+  assert.equal(speedVisible(bahn, { railMin: 250 }), true);
+  assert.equal(speedVisible(classifySpeed({ railway: "rail", maxspeed: "160" }), { railMin: 200 }), false);
+  assert.equal(speedVisible(frei, { motorway: "none" }), true);
+  assert.equal(speedVisible(t120, { motorway: "none" }), false);
+  assert.equal(speedVisible(t120, { motorway: "le120" }), true);
+  // Brücken: normale Straßenbrücke raus, Autobahn/über Autobahn/hoch/Bahn drin
+  assert.equal(classifyInfra({ bridge: "yes", highway: "residential", name: "Kleine Brücke" }), null);
+  assert.equal(classifyInfra({ bridge: "yes", highway: "motorway", ref: "A 7" }).kind, "Autobahnbrücke");
+  assert.equal(classifyInfra({ bridge: "yes", highway: "tertiary", _overMotorway: true }).kind, "Brücke über die Autobahn");
+  const hoch = classifyInfra({ bridge: "yes", highway: "secondary", height: "185", name: "Kochertalbrücke" });
+  assert.deepEqual([hoch.kind, hoch.facts[0]], ["Brücke", "185 m hoch"]);
+  assert.equal(classifyInfra({ bridge: "yes", railway: "rail", name: "Göltzschtalbrücke" }).kind, "Eisenbahnbrücke");
+  const r = splitInfra({ elements: [
+    { type: "way", id: 1, center: { lat: 50, lon: 10 }, tags: { bridge: "yes", railway: "rail", name: "X" } },
+    { type: "marker", tags: { part: "over" } },
+    { type: "way", id: 1, center: { lat: 50, lon: 10 }, tags: { bridge: "yes", railway: "rail", name: "X" } },
+    { type: "way", id: 2, center: { lat: 50, lon: 10.001 }, tags: { bridge: "yes", highway: "tertiary" } },
+    { type: "marker", tags: { part: "speed" } },
+    { type: "way", id: 3, geometry: [{ lat: 50, lon: 10 }, { lat: 50.1, lon: 10 }], tags: { highway: "motorway", maxspeed: "none" } },
+    { type: "marker", tags: { part: "lines" } },
+  ] }, { lat: 50, lon: 10 });
+  assert.equal(r.points.length, 2);
+  assert.ok(r.points.every((p) => p.tags._overMotorway));
+  assert.equal(r.speed.length, 1);
+  assert.equal(r.lines.length, 0);
+});
