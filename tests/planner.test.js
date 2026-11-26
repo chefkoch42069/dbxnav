@@ -494,3 +494,20 @@ test("Merkliste: Reise speichern, Standardstrecke umschalten", async () => {
   assert.equal(isRouteSaved(A, B), false);
   assert.ok(JSON.parse(exportAll()).trips.length === 1);
 });
+
+test("Bubatzkarte: Einrichtungen erkennen, Zonenradius, Fußgängerzone 7–20 Uhr", async () => {
+  const { classifyBubatz, zoneRadius, pedestrianBanActive, bubatzQuery } = await import("../js/planner/bubatz.js");
+  assert.equal(classifyBubatz({ amenity: "school" }), "school");
+  assert.equal(classifyBubatz({ amenity: "kindergarten" }), "kids");
+  assert.equal(classifyBubatz({ amenity: "community_centre", community_centre: "youth_centre" }), "kids");
+  assert.equal(classifyBubatz({ leisure: "playground" }), "playground");
+  assert.equal(classifyBubatz({ leisure: "pitch", access: "private" }), null);
+  assert.equal(classifyBubatz({ highway: "pedestrian" }), "pedestrian");
+  assert.equal(classifyBubatz({ amenity: "bench" }), null);
+  assert.equal(zoneRadius(null), 100);
+  const r = zoneRadius({ minlat: 50, maxlat: 50.001, minlon: 10, maxlon: 10.001 }); // ca. 111 × 71 m
+  assert.ok(r > 160 && r < 170);
+  assert.equal(pedestrianBanActive(new Date("2026-11-26T12:00:00Z")), true); // 13 Uhr
+  assert.equal(pedestrianBanActive(new Date("2026-11-26T20:30:00Z")), false); // 21:30 Uhr
+  assert.match(bubatzQuery("1,2,3,4"), /\[bbox:1,2,3,4\]/);
+});

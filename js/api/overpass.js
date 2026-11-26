@@ -328,6 +328,17 @@ out center tags;`;
   return { elements: elements({ elements: rest }, station), polygons };
 }
 
+// ---- Bubatzkarte: Konsumverbotszonen im Rechteck ----
+export async function bubatzPlaces(bbox, buildQuery) {
+  const res = await query(buildQuery(bbox));
+  const zones = [], streets = [];
+  for (const e of res?.elements || []) {
+    if (e.geometry) streets.push({ tags: e.tags || {}, coords: e.geometry.map((p) => [p.lat, p.lon]) });
+    else zones.push({ lat: e.lat ?? e.center?.lat, lon: e.lon ?? e.center?.lon, tags: e.tags || {}, bounds: e.bounds });
+  }
+  return { zones: zones.filter((z) => z.lat != null), streets };
+}
+
 // ---- YouTuber-Modus: Infrastruktur im Kartenausschnitt ----
 export function infraQuery(bbox, withLines = false) {
   // Reihenfolge der Ausgabe: Punkte · Marker „over“ · Brücken über Autobahnen · Marker „speed“ · Tempo-Linien · (Leitungen)

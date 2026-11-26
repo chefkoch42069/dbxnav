@@ -1,6 +1,6 @@
 // Reiter „Verbindung“: Start und Ziel eingeben → Verbindungen nur mit dem Deutschlandticket.
 // Auf Wunsch zum Vergleich auch ICE/IC (ausgegraut), damit man sieht, was der Nahverkehr kostet.
-import { el, clear, toast, busy, spinnerLine, errorLine, badgeFor, bahnLink, durationSelect, optionSelect, DURATIONS, plain } from "./dom.js";
+import { el, clear, toast, busy, spinnerLine, errorLine, badgeFor, bahnLink, dateQuick, durationSelect, optionSelect, DURATIONS, plain } from "./dom.js";
 import { stopList } from "./stopList.js";
 import { placeInput } from "./placeInput.js";
 import { renderItinerary, sightsPanel, lazyDetails } from "./details.js";
@@ -198,6 +198,7 @@ export function initRouteTab(root) {
     el("div", { class: "row" },
       el("div", { class: "field" }, el("label", { for: "route-date" }, "Datum"), date),
       timeField, modeField, nowField),
+    dateQuick(date),
     el("details", {}, el("summary", {}, "Optionen"),
       viaWrap,
       el("div", { class: "field" }, el("label", {}, "Umstiege"), maxT),
@@ -209,6 +210,17 @@ export function initRouteTab(root) {
     resultBox,
     recentBox);
   setMode(MODES[current] ? current : "simple");
+  // Optionen merken (Umstiege, nur Bahn, Umstiegszeit, Rollstuhl, Vergleich)
+  const optFields = { maxT, railOnly, slow, wheel, compare };
+  const savedOpts = load("routeOpts", {});
+  for (const [k, f] of Object.entries(optFields)) {
+    if (k in savedOpts) { if (f.type === "checkbox") f.checked = savedOpts[k]; else f.value = savedOpts[k]; }
+    f.addEventListener("change", () => save("routeOpts", Object.fromEntries(Object.entries(optFields).map(([n, x]) => [n, x.type === "checkbox" ? x.checked : x.value]))));
+  }
+  // Sobald Start und Ziel stehen: im Einfach-Modus gleich suchen
+  const autoSearch = () => { updateSaveRoute(); if (current === "simple" && from.value && to.value && !go.disabled) go.click(); };
+  to.node.addEventListener("place", () => setTimeout(autoSearch, 0));
+  from.node.addEventListener("place", () => { updateSaveRoute(); if (to.value) setTimeout(autoSearch, 0); });
   // Schnellwahl: Standardstrecken und gemerkte Bahnhöfe
   const renderQuick = () => {
     const stations = state.favorites.filter((f) => f.kind === "Bahnhof" || f.stopId);

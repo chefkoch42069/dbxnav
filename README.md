@@ -234,3 +234,11 @@ Dritte Grundkarte „Satellit“ (Esri World Imagery, mit Quellenhinweis).
 - **Standardstrecke:** „☆ Strecke merken“ speichert Start/Ziel. Erscheint oben in „Verbindung“ als Knopf (ein Klick sucht) und in Merkliste → Strecken.
 - **Bahnhöfe:** „☆ Start“ / „☆ Ziel“ merken den Bahnhof; gemerkte Bahnhöfe stehen als Schnellwahl über den Eingabefeldern.
 - Merkliste hat Unter-Reiter: Reisen, Strecken, Orte, Touren, Tagebuch, Sicherung. Reisen und Strecken sind in Export/Import enthalten.
+
+### Bubatzkarte (abschaltbar)
+Kartenebene „🌿 Bubatzkarte (Konsumverbot)“ im Ebenen-Menü, standardmäßig aus. Zeigt ab Zoom 14 die Zonen nach Konsumcannabisgesetz § 5, berechnet aus OpenStreetMap: 100 m um Schulen, Kitas/Kinder- und Jugendeinrichtungen, Spielplätze und öffentliche Sportstätten (Näherung um das Gelände), dazu Fußgängerzonen (Verbot 7–20 Uhr, Anzeige je nach Uhrzeit). Ohne Gewähr – Kommunen können strengere Regeln haben.
+
+### Eingaben
+- Leeres Ortsfeld antippen: sofort Zuhause, gemerkte Bahnhöfe und zuletzt benutzte Orte.
+- „Heute · Morgen · Sa · So“ neben Datumsfeldern (Verbindung, Tagestrip).
+- Verbindung: Optionen werden gemerkt; sind Start und Ziel gewählt, startet die Suche automatisch.
