@@ -228,3 +228,9 @@ Daten: © OpenStreetMap-Mitwirkende, Fahrpläne über [Transitous](https://trans
 
 ### Satellitenkarte
 Dritte Grundkarte „Satellit“ (Esri World Imagery, mit Quellenhinweis).
+
+### Reisen, Strecken und Bahnhöfe speichern
+- **Reise speichern:** In „Verbindung“ eine Fahrt aufklappen → „☆ Reise speichern“. Merkliste → Reisen zeigt sie mit Zeiten und Linien; „Öffnen“ zeigt alle Abschnitte, „Neu suchen“ sucht die Strecke aktuell.
+- **Standardstrecke:** „☆ Strecke merken“ speichert Start/Ziel. Erscheint oben in „Verbindung“ als Knopf (ein Klick sucht) und in Merkliste → Strecken.
+- **Bahnhöfe:** „☆ Start“ / „☆ Ziel“ merken den Bahnhof; gemerkte Bahnhöfe stehen als Schnellwahl über den Eingabefeldern.
+- Merkliste hat Unter-Reiter: Reisen, Strecken, Orte, Touren, Tagebuch, Sicherung. Reisen und Strecken sind in Export/Import enthalten.

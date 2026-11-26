@@ -8,7 +8,7 @@ import { returnPanel } from "./tourView.js";
 import { budgetPanel } from "./budgetTab.js";
 import { groups, drawItinerary, fitPoints, pinIcon, DAY_COLORS } from "./map.js";
 import { nav } from "./nav.js";
-import { state, addJournal } from "../state.js";
+import { state, addJournal, addFavorite, saveTrip, toggleRoute, isRouteSaved, onChange } from "../state.js";
 import { load, save } from "../lib/store.js";
 import { searchConnections } from "../api/transitous.js";
 import { shoppingCenters } from "../api/overpass.js";
@@ -22,7 +22,7 @@ import { berlinToISO, berlinDate, fmtTime, fmtDuration, fmtDate, todayBerlin } f
 import { addItineraryToCollector } from "../collector.js";
 
 const api = { plan: (f, t, iso, o) => searchConnections(f, t, iso, { ...o, modes: o.modes || connectionModes() }).then((r) => r.itineraries) };
-let from, to, via, resultBox, recentBox;
+let from, to, via, resultBox, recentBox, quickBox;
 let results = [], cursors = {}, lastQuery = null, openKey = null;
 const recent = load("routeRecent", []);
 
@@ -34,7 +34,19 @@ export function initRouteTab(root) {
   to = placeInput({ label: "Nach", id: "route-to" });
   via = placeInput({ label: "Über (optional)", id: "route-via", stopsOnly: true, placeholder: "Bahnhof, über den es gehen soll" });
   const swap = el("button", { class: "btn small", title: "Start und Ziel tauschen", "aria-label": "Start und Ziel tauschen" }, "⇅ tauschen");
-  swap.onclick = () => { const a = from.value, b = to.value; from.value = b; to.value = a; };
+  swap.onclick = () => { const a = from.value, b = to.value; from.value = b; to.value = a; updateSaveRoute(); };
+  const saveRoute = el("button", { class: "btn small", title: "Start und Ziel als Standardstrecke merken" }, "☆ Strecke merken");
+  const updateSaveRoute = () => { saveRoute.textContent = from.value && to.value && isRouteSaved(from.value, to.value) ? "★ Strecke gemerkt" : "☆ Strecke merken"; };
+  saveRoute.onclick = () => {
+    if (!from.value || !to.value) return toast("Erst Start und Ziel wählen.");
+    toast(toggleRoute(from.value, to.value) ? "Als Standardstrecke gemerkt – oben im Reiter und in der Merkliste" : "Standardstrecke entfernt");
+    updateSaveRoute();
+  };
+  const saveStation = (which) => el("button", { class: "btn small", title: which === "from" ? "Startbahnhof merken" : "Zielbahnhof merken", onclick: () => {
+    const p = which === "from" ? from.value : to.value;
+    if (!p) return toast("Erst einen Bahnhof wählen.");
+    toast(addFavorite(p, "Bahnhof") ? `${p.name} gemerkt` : "Schon gemerkt");
+  } }, which === "from" ? "☆ Start" : "☆ Ziel");
 
   const date = el("input", { type: "date", id: "route-date", value: todayBerlin() });
   const time = el("input", { type: "time", id: "route-time", value: nowHHMM() });
@@ -49,6 +61,7 @@ export function initRouteTab(root) {
   const go = el("button", { class: "btn primary block" }, "Verbindungen suchen");
   resultBox = el("div");
   recentBox = el("div");
+  quickBox = el("div");
 
   // ---------- Modus-Umschalter
   const MODES = {
@@ -164,6 +177,7 @@ export function initRouteTab(root) {
     open: ({ from: f, to: t } = {}) => {
       if (f) from.value = f;
       if (t) to.value = t;
+      updateSaveRoute();
       nav.switchTab("route");
       if (current !== "simple") setMode("simple");
       if (from.value && to.value) busy(go, () => run(query()));
@@ -174,9 +188,11 @@ export function initRouteTab(root) {
     el("h2", {}, "Verbindung"),
     el("div", { class: "chips", role: "group", "aria-label": "Art der Suche" }, modeBtns),
     lead,
+    quickBox,
     from.node,
-    el("div", { style: { display: "flex", justifyContent: "flex-end", margin: "-4px 0 2px" } }, swap),
+    el("div", { style: { display: "flex", justifyContent: "flex-end", flexWrap: "wrap", gap: "6px", margin: "-4px 0 2px" } }, saveStation("from"), saveRoute, swap),
     to.node,
+    el("div", { style: { display: "flex", justifyContent: "flex-end", margin: "-4px 0 4px" } }, saveStation("to")),
     multiBox,
     shopBox,
     el("div", { class: "row" },
@@ -193,6 +209,20 @@ export function initRouteTab(root) {
     resultBox,
     recentBox);
   setMode(MODES[current] ? current : "simple");
+  // Schnellwahl: Standardstrecken und gemerkte Bahnhöfe
+  const renderQuick = () => {
+    const stations = state.favorites.filter((f) => f.kind === "Bahnhof" || f.stopId);
+    if (state.prefs.home && !stations.some((f) => f.name === state.prefs.home.name)) stations.unshift({ ...state.prefs.home, home: true });
+    const fill = (p) => { if (!from.value) from.value = p; else to.value = p; updateSaveRoute(); };
+    clear(quickBox).append(
+      state.routes.length ? el("div", { class: "quick" }, el("span", { class: "lbl" }, "Meine Strecken"),
+        el("div", { class: "chips" }, state.routes.map((r) => el("button", { class: "chip", title: "Diese Strecke suchen", onclick: () => nav.route.open(r) }, `${r.from.name} → ${r.to.name}`)))) : null,
+      stations.length ? el("div", { class: "quick" }, el("span", { class: "lbl" }, "Meine Bahnhöfe (Start, wenn leer – sonst Ziel)"),
+        el("div", { class: "chips" }, stations.slice(0, 10).map((f) => el("button", { class: "chip", onclick: () => fill({ name: f.name, lat: f.lat, lon: f.lon, stopId: f.stopId }) }, f.home ? `⌂ ${f.name}` : f.name)))) : null);
+  };
+  onChange((k) => { if (k === "routes" || k === "favorites" || k === "prefs") { renderQuick(); updateSaveRoute(); } });
+  renderQuick();
+  nav.route.showTrip = (t) => showSavedTrip(t);
   renderRecent();
 }
 
@@ -301,6 +331,8 @@ function details(it, q) {
       ? `⏰ Letzte Verbindung am ${fmtDate(berlinDate(s.dep))}: ${fmtTime(last.startTime)} ab ${q.from.name}, an ${fmtTime(transitArrival(last))}.`
       : "Keine spätere Verbindung am selben Tag gefunden."));
   });
+  const saveBtn = el("button", { class: "btn small primary" }, "☆ Reise speichern");
+  saveBtn.onclick = () => { toast(saveTrip({ from: q.from, to: q.to, itinerary: it }) ? "Reise gespeichert – Merkliste → Reisen" : "Diese Reise ist schon gespeichert"); saveBtn.textContent = "★ Gespeichert"; };
   const doneBtn = el("button", { class: "btn small" }, "✓ Bin ich gefahren");
   doneBtn.onclick = () => busy(doneBtn, async () => {
     const n = await addItineraryToCollector(it);
@@ -309,6 +341,7 @@ function details(it, q) {
   });
   box.append(
     el("div", { class: "btns" },
+      saveBtn,
       el("button", { class: "btn small", title: "Ganze Suche umdrehen", onclick: () => nav.route.open({ from: q.to, to: q.from }) }, "⇄ Als neue Suche"),
       lastBtn,
       el("a", { class: "btn small", href: bahnLink(q.from, q.to, it.startTime), target: "_blank", rel: "noopener", title: "Im DB Navigator „Nur Nahverkehr“ wählen" }, "Bei DB gegenprüfen"),
@@ -420,5 +453,25 @@ async function runShop(q) {
     el("div", { class: "card" }, el("h4", {}, "Rückfahrt"), segmentSummary(r.inbound), lazyDetails("Alle Abschnitte", () => renderItinerary(r.inbound))),
     lazyDetails("Günstig essen, WLAN, Toiletten am Einkaufsort", () => budgetPanel(q.dest)));
   fitPoints(pts, 12);
+  document.getElementById("panel").scrollTop = resultBox.offsetTop - 10;
+}
+
+// ---------------------------------------------------------------- gespeicherte Reise anzeigen
+function showSavedTrip(t) {
+  nav.switchTab("route");
+  const it = t.itinerary;
+  const s = summarize(it);
+  const past = Date.parse(s.dep) < Date.now();
+  showOnMap(it);
+  clear(resultBox).append(
+    el("div", { class: "card", style: { background: "var(--soft)" } },
+      el("strong", {}, `★ ${t.from.name} → ${t.to.name}`),
+      el("p", { class: "muted small", style: { margin: "2px 0 6px" } }, `Gespeicherte Reise vom ${fmtDate(berlinDate(s.dep))}${past ? " – liegt in der Vergangenheit" : ""}. Zeiten können sich seitdem geändert haben.`),
+      segmentSummary(it),
+      renderItinerary(it),
+      el("div", { class: "btns" },
+        el("button", { class: "btn small primary", onclick: () => nav.route.open({ from: t.from, to: t.to }) }, "Jetzt neu suchen"),
+        el("button", { class: "btn small", onclick: () => nav.route.open({ from: t.to, to: t.from }) }, "⇄ Rückfahrt"),
+        el("a", { class: "btn small", href: bahnLink(t.from, t.to, it.startTime), target: "_blank", rel: "noopener" }, "Bei DB gegenprüfen"))));
   document.getElementById("panel").scrollTop = resultBox.offsetTop - 10;
 }

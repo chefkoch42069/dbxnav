@@ -1,5 +1,8 @@
-// Reiter „Merkliste“: Favoriten, gespeicherte Touren, Reisetagebuch, Sicherung.
-import { el, clear, toast } from "./dom.js";
+// Reiter „Merkliste“ mit Unter-Reitern: Reisen, Strecken, Orte, Touren, Tagebuch, Sicherung.
+import { el, clear, toast, badgeFor } from "./dom.js";
+import { load, save } from "../lib/store.js";
+import { summarize } from "../planner/connection.js";
+import { fmtTime, fmtDuration, berlinDate } from "../lib/time.js";
 import { map, focusOn } from "./map.js";
 import { nav } from "./nav.js";
 import { state, onChange, removeById, addJournal, exportAll, importAll, persist } from "../state.js";
@@ -9,7 +12,7 @@ let root;
 
 export function initSavedTab(container) {
   root = container;
-  onChange((k) => { if (["favorites", "tours", "journal"].includes(k)) render(); });
+  onChange((k) => { if (["favorites", "tours", "journal", "trips", "routes"].includes(k)) render(); });
   render();
 }
 
@@ -45,24 +48,56 @@ function render() {
     try { importAll(await f.text()); toast("Sicherung eingespielt"); } catch { toast("Datei konnte nicht gelesen werden."); }
   } });
 
-  clear(root).append(
-    el("h2", {}, "Merkliste"),
-    el("h3", {}, `Favoriten (${state.favorites.length})`),
-    state.favorites.length ? favs : el("p", { class: "muted small" }, "Bahnhöfe, Ziele und Unterkünfte mit ☆ merken."),
-    el("h3", {}, `Gespeicherte Touren (${state.tours.length})`),
-    state.tours.length ? tours : el("p", { class: "muted small" }, "Noch keine Tour gespeichert."),
-    el("h3", {}, "Reisetagebuch"),
-    el("div", { class: "card" },
+  const trips = el("ul", { class: "list" }, state.trips.map((t) => {
+    const x = summarize(t.itinerary);
+    const past = Date.parse(x.dep) < Date.now();
+    return el("li", { style: past ? { opacity: 0.6 } : null },
+      el("div", { class: "grow" },
+        el("strong", {}, `${t.from.name} → ${t.to.name}`),
+        el("span", { class: "muted small" }, `${fmtDate(berlinDate(x.dep))} · ${fmtTime(x.dep)}–${fmtTime(x.arr)} · ${fmtDuration(x.duration)} · ${x.transfers ? `${x.transfers} Umst.` : "direkt"}${past ? " · vorbei" : ""}`),
+        el("span", { class: "conn-lines" }, x.lines.map((l) => badgeFor({ mode: l.mode, displayName: l.name })))),
+      el("button", { class: "btn small", onclick: () => nav.route.showTrip(t) }, "Öffnen"),
+      el("button", { class: "btn small", title: "Gleiche Strecke neu suchen", onclick: () => nav.route.open({ from: t.from, to: t.to }) }, "Neu suchen"),
+      el("button", { class: "btn small", title: "löschen", "aria-label": "Reise löschen", onclick: () => removeById("trips", t.id) }, "✕"));
+  }));
+  const pastTrips = state.trips.filter((t) => Date.parse(summarize(t.itinerary).dep) < Date.now());
+
+  const routes = el("ul", { class: "list" }, state.routes.map((r) =>
+    el("li", {}, el("div", { class: "grow" }, el("strong", {}, `${r.from.name} → ${r.to.name}`)),
+      el("button", { class: "btn small primary", onclick: () => nav.route.open(r) }, "Suchen"),
+      el("button", { class: "btn small", title: "Rückfahrt suchen", onclick: () => nav.route.open({ from: r.to, to: r.from }) }, "⇄"),
+      el("button", { class: "btn small", title: "entfernen", "aria-label": "Strecke entfernen", onclick: () => removeById("routes", r.id) }, "✕"))));
+
+  const SECTIONS = {
+    trips: [`Reisen (${state.trips.length})`, () => [
+      state.trips.length ? trips : el("p", { class: "muted small" }, "Noch keine Reise gespeichert. In „Verbindung“ eine Fahrt aufklappen → „☆ Reise speichern“."),
+      pastTrips.length ? el("button", { class: "btn small", onclick: () => { if (confirm(`${pastTrips.length} vergangene Reisen löschen?`)) { state.trips = state.trips.filter((t) => !pastTrips.includes(t)); persist("trips"); } } }, "Vergangene löschen") : null]],
+    routes: [`Strecken (${state.routes.length})`, () => [
+      el("p", { class: "muted small" }, "Standardstrecken erscheinen auch oben im Reiter „Verbindung“ – ein Klick sucht sofort."),
+      state.routes.length ? routes : el("p", { class: "muted small" }, "Noch keine. In „Verbindung“ Start und Ziel wählen → „☆ Strecke merken“.")]],
+    places: [`Orte (${state.favorites.length})`, () => [
+      state.favorites.length ? favs : el("p", { class: "muted small" }, "Bahnhöfe, Ziele und Unterkünfte mit ☆ merken. Gemerkte Bahnhöfe stehen in „Verbindung“ als Schnellwahl.")]],
+    tours: [`Touren (${state.tours.length})`, () => [state.tours.length ? tours : el("p", { class: "muted small" }, "Noch keine Tour gespeichert.")]],
+    journal: ["Tagebuch", () => [journalForm, journal]],
+    backup: ["Sicherung", () => [backup]],
+  };
+  let current = load("savedSection", "trips");
+  if (!SECTIONS[current]) current = "trips";
+  const body = el("div");
+  const tabs = Object.entries(SECTIONS).map(([k, [label]]) => el("button", { class: "chip", "aria-pressed": String(k === current), onclick: () => { current = k; save("savedSection", k); show(); } }, label));
+  const show = () => {
+    tabs.forEach((b, i) => b.setAttribute("aria-pressed", String(Object.keys(SECTIONS)[i] === current)));
+    clear(body).append(...SECTIONS[current][1]().filter(Boolean));
+  };
+  const journalForm = el("div", { class: "card" },
       el("div", { class: "row" }, el("div", { class: "field", style: { flex: "0 0 150px" } }, el("label", {}, "Datum"), jDate), el("div", { class: "field" }, el("label", {}, "Titel"), jTitle)),
       jText,
       el("button", { class: "btn primary small", style: { marginTop: "8px" }, onclick: () => {
         if (!jTitle.value.trim()) return toast("Bitte einen Titel eingeben.");
         addJournal({ date: jDate.value, title: jTitle.value.trim(), text: jText.value });
         toast("Eintrag gespeichert");
-      } }, "Eintrag hinzufügen")),
-    journal,
-    el("hr"),
-    el("h3", {}, "Sicherung"),
+      } }, "Eintrag hinzufügen"));
+  const backup = el("div", {},
     el("p", { class: "muted small" }, "Alles liegt nur in diesem Browser. Zum Umziehen aufs Handy: exportieren und dort einspielen."),
     el("div", { class: "btns" },
       el("button", { class: "btn", onclick: () => {
@@ -71,4 +106,6 @@ function render() {
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       } }, "Exportieren"),
       el("button", { class: "btn", onclick: () => file.click() }, "Einspielen"), file));
+  show();
+  clear(root).append(el("h2", {}, "Merkliste"), el("div", { class: "subtabs", role: "group", "aria-label": "Bereiche" }, tabs), body);
 }

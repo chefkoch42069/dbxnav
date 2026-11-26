@@ -285,3 +285,7 @@ details.branch > .list { margin: 0 0 8px 18px; }
   :focus-visible { outline: 3px solid Highlight; }
 }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+.quick { margin: 4px 0 8px; }
+.quick .lbl { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
+.subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
