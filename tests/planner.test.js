@@ -479,3 +479,18 @@ test("YouTuber: Tempo Bahn und Autobahn, Brücken-Regeln, Antwort aufteilen", as
   assert.equal(r.speed.length, 1);
   assert.equal(r.lines.length, 0);
 });
+
+test("Merkliste: Reise speichern, Standardstrecke umschalten", async () => {
+  globalThis.localStorage ??= { _d: {}, getItem(k) { return this._d[k] ?? null; }, setItem(k, v) { this._d[k] = String(v); } };
+  const { state, saveTrip, toggleRoute, isRouteSaved, exportAll } = await import("../js/state.js");
+  const A = { name: "Erfurt Hbf", lat: 50.97, lon: 11.04, stopId: "x:1" }, B = { name: "Leipzig Hbf", lat: 51.35, lon: 12.38 };
+  const it = { startTime: "2026-12-01T07:00:00Z", endTime: "2026-12-01T09:00:00Z", duration: 7200, transfers: 0, legs: [{ mode: "REGIONAL_RAIL", from: A, to: B, startTime: "2026-12-01T07:00:00Z", endTime: "2026-12-01T09:00:00Z", steps: [1, 2], alternatives: [] }] };
+  assert.equal(saveTrip({ from: A, to: B, itinerary: it }), true);
+  assert.equal(saveTrip({ from: A, to: B, itinerary: it }), false); // doppelt
+  assert.equal(state.trips[0].itinerary.legs[0].steps, undefined); // große Felder weg
+  assert.equal(toggleRoute(A, B), true);
+  assert.equal(isRouteSaved({ ...A, name: "anders" }, B), true); // gleiche stopId
+  assert.equal(toggleRoute(A, B), false);
+  assert.equal(isRouteSaved(A, B), false);
+  assert.ok(JSON.parse(exportAll()).trips.length === 1);
+});

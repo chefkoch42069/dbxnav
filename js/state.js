@@ -10,6 +10,8 @@ export const state = {
   tours: load("tours", []),
   journal: load("journal", []),
   collector: load("collector", { legs: [], manualStates: {} }),
+  trips: load("trips", []), // gespeicherte Einzelfahrten
+  routes: load("routes", []), // Standardstrecken (Start/Ziel)
   prefs: load("prefs", { home: null, baseLayer: null, maxHours: 6, departTime: "08:00" }),
 };
 
@@ -43,6 +45,30 @@ export function saveTour(tour) {
   persist("tours");
 }
 
+const samePlace = (a, b) => Boolean(a && b && ((a.stopId && a.stopId === b.stopId) || (a.name === b.name && Math.abs(a.lat - b.lat) < 1e-3)));
+const slimPlace = (p) => ({ name: p.name, lat: p.lat, lon: p.lon, stopId: p.stopId });
+
+/** Einzelfahrt speichern (ohne große Felder). @returns false, wenn schon gespeichert */
+export function saveTrip({ from, to, itinerary }) {
+  const key = `${from.name}|${to.name}|${itinerary.startTime}`;
+  if (state.trips.some((t) => t.key === key)) return false;
+  const legs = itinerary.legs.map(({ steps, alternatives, tripFrom, tripTo, ...l }) => l);
+  state.trips.unshift({ id: uid(), key, from: slimPlace(from), to: slimPlace(to), itinerary: { ...itinerary, legs }, saved: new Date().toISOString() });
+  persist("trips");
+  return true;
+}
+
+export const isRouteSaved = (from, to) => state.routes.some((r) => samePlace(r.from, from) && samePlace(r.to, to));
+
+/** Standardstrecke merken bzw. wieder entfernen. @returns true = jetzt gemerkt */
+export function toggleRoute(from, to) {
+  const i = state.routes.findIndex((r) => samePlace(r.from, from) && samePlace(r.to, to));
+  if (i >= 0) state.routes.splice(i, 1);
+  else state.routes.unshift({ id: uid(), from: slimPlace(from), to: slimPlace(to) });
+  persist("routes");
+  return i < 0;
+}
+
 export function addJournal(entry) {
   state.journal.unshift({ id: uid(), date: entry.date, title: entry.title, text: entry.text || "", tourId: entry.tourId });
   state.journal.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
@@ -50,10 +76,10 @@ export function addJournal(entry) {
 }
 
 export function exportAll() {
-  return JSON.stringify({ version: 1, exported: new Date().toISOString(), favorites: state.favorites, tours: state.tours, journal: state.journal, collector: state.collector }, null, 1);
+  return JSON.stringify({ version: 1, exported: new Date().toISOString(), favorites: state.favorites, tours: state.tours, journal: state.journal, collector: state.collector, trips: state.trips, routes: state.routes }, null, 1);
 }
 
 export function importAll(json) {
   const d = JSON.parse(json);
-  for (const k of ["favorites", "tours", "journal", "collector"]) if (d[k]) { state[k] = d[k]; persist(k); }
+  for (const k of ["favorites", "tours", "journal", "collector", "trips", "routes"]) if (d[k]) { state[k] = d[k]; persist(k); }
 }
