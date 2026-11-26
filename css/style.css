@@ -289,3 +289,6 @@ details.branch > .list { margin: 0 0 8px 18px; }
 .quick { margin: 4px 0 8px; }
 .quick .lbl { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 2px; }
 .subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px; }
+
+.date-quick { display: flex; gap: 4px; flex-wrap: wrap; margin: -4px 0 8px; }
+.date-quick .chip { padding: 2px 8px; font-size: 12px; }

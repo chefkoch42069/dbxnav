@@ -1,5 +1,6 @@
 // Karte mit Ebenen-Umschalter: Grundkarte wählbar, Zusatzebenen zuschaltbar, Quellenhinweis je Ebene.
 import { BASE_LAYERS, OVERLAY_LAYERS, RAIN_RADAR } from "../config.js";
+import { makeBubatzLayer } from "./bubatzLayer.js";
 import { state, setPref } from "../state.js";
 import { legPoints } from "../lib/polyline.js";
 import { groupOf } from "../planner/departures.js";
@@ -49,6 +50,7 @@ export function initMap() {
   overlays["Interrail-Länder"] = groups.countries;
   overlays["Infrastruktur (YouTuber)"] = groups.infra;
   overlays["Homeless-Modus"] = groups.homeless;
+  overlays["🌿 Bubatzkarte (Konsumverbot)"] = makeBubatzLayer(map); // standardmäßig aus
 
   L.control.layers(bases, overlays, { collapsed: true }).addTo(map);
   L.control.scale({ imperial: false }).addTo(map);

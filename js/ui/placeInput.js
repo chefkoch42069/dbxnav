@@ -1,6 +1,30 @@
 // Ortseingabe mit Vorschlägen aus Transitous (Haltestellen zuerst) und Standort-Knopf.
 import { el, toast } from "./dom.js";
 import { geocode, reverseStop } from "../api/transitous.js";
+import { load, save } from "../lib/store.js";
+import { state } from "../state.js";
+
+const RECENT_KEY = "recentPlaces";
+function remember(p) {
+  if (!p?.name || ["Mein Standort", "Punkt auf der Karte", "Kartenausschnitt"].includes(p.name)) return;
+  const list = load(RECENT_KEY, []).filter((x) => x.name !== p.name);
+  list.unshift({ name: p.name, lat: p.lat, lon: p.lon, stopId: p.stopId, rail: p.rail });
+  save(RECENT_KEY, list.slice(0, 8));
+}
+
+/** Vorschläge für ein leeres Feld: Zuhause, gemerkte Bahnhöfe, zuletzt benutzt. */
+function quickSuggestions(stopsOnly) {
+  const out = [], seen = new Set();
+  const add = (p, tag) => {
+    if (!p?.name || seen.has(p.name) || (stopsOnly && !p.stopId)) return;
+    seen.add(p.name);
+    out.push({ name: p.name, lat: p.lat, lon: p.lon, stopId: p.stopId, type: p.stopId ? "STOP" : "PLACE", rail: p.rail ?? Boolean(p.stopId), area: tag });
+  };
+  add(state.prefs.home, "Zuhause");
+  for (const f of state.favorites) if (f.kind === "Bahnhof" || f.stopId) add(f, "gemerkt");
+  for (const r of load(RECENT_KEY, [])) add(r, "zuletzt");
+  return out.slice(0, 8);
+}
 
 export function placeInput({ label, placeholder = "Bahnhof oder Ort", value = null, onSelect, stopsOnly = false, snapToStop = true, id }) {
   let selected = value;
@@ -13,11 +37,13 @@ export function placeInput({ label, placeholder = "Bahnhof oder Ort", value = nu
   const wrap = el("div", { class: "field" }, label ? el("label", { for: id }, label) : null, el("div", { class: "row" }, input, locate), box);
 
   const choose = (p) => {
+    remember(p);
     selected = p;
     input.value = p.name;
     box.hidden = true;
     box.replaceChildren();
     onSelect?.(p);
+    wrap.dispatchEvent(new CustomEvent("place", { detail: p })); // für Formulare, die auf eine Auswahl reagieren
   };
 
   const render = () => {
@@ -35,7 +61,10 @@ export function placeInput({ label, placeholder = "Bahnhof oder Ort", value = nu
     selected = null;
     clearTimeout(timer);
     const q = input.value.trim();
-    if (q.length < 2) { results = []; render(); return; }
+    // Alte Vorschläge sofort weg – sonst würde ein schnelles Enter einen veralteten Treffer wählen
+    results = [];
+    render();
+    if (q.length < 2) return;
     timer = setTimeout(async () => {
       ctrl?.abort();
       ctrl = new AbortController();
@@ -74,6 +103,15 @@ export function placeInput({ label, placeholder = "Bahnhof oder Ort", value = nu
     else if (e.key === "Escape") box.hidden = true;
   });
   input.addEventListener("blur", () => setTimeout(() => (box.hidden = true), 150));
+  // Leeres Feld antippen: sofort Zuhause, gemerkte und zuletzt benutzte Orte anbieten
+  const showQuick = () => {
+    if (input.value.trim()) return;
+    results = quickSuggestions(stopsOnly);
+    active = -1;
+    render();
+  };
+  input.addEventListener("focus", showQuick);
+  input.addEventListener("input", () => { if (!input.value.trim()) showQuick(); });
 
   locate.addEventListener("click", () => {
     if (!navigator.geolocation) return toast("Standort wird von diesem Browser nicht unterstützt.");

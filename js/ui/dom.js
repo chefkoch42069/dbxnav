@@ -1,7 +1,7 @@
 // Mini-DOM-Helfer. Texte aus OSM/Fahrplan werden immer als Text gesetzt (kein innerHTML).
 import { groupOf } from "../planner/departures.js";
 import { lineName } from "../planner/dticket.js";
-import { fmtMinutes } from "../lib/time.js";
+import { fmtMinutes, todayBerlin, addDays, nextWeekday } from "../lib/time.js";
 
 export function el(tag, attrs = {}, ...children) {
   const n = document.createElement(tag);
@@ -20,7 +20,14 @@ export function el(tag, attrs = {}, ...children) {
   return n;
 }
 
-export const clear = (n) => { while (n.firstChild) n.firstChild.remove(); return n; };
+/**
+ * Inhalt leeren. Gibt ein Objekt mit append zurück, das null/false/undefined überspringt
+ * (das native append schreibt sonst wörtlich „null“ in die Seite).
+ */
+export const clear = (n) => {
+  while (n.firstChild) n.firstChild.remove();
+  return { append: (...c) => { n.append(...c.flat(Infinity).filter((x) => x != null && x !== false)); return n; } };
+};
 
 let toastTimer;
 export function toast(msg, ms = 3200) {
@@ -107,4 +114,12 @@ export const DURATIONS = {
 /** Auswahlfeld für eine Dauer; Werte in Minuten, Beschriftung „15 min“, „1 h 30 min“. */
 export function durationSelect(minutes, selected, attrs = {}, extra = []) {
   return optionSelect([...minutes.map((m) => [m, fmtMinutes(m)]), ...extra], selected, attrs);
+}
+
+/** Schnellknöpfe „Heute · Morgen · Sa · So“ für ein Datumsfeld. */
+export function dateQuick(input) {
+  const set = (d) => { input.value = d; input.dispatchEvent(new Event("change", { bubbles: true })); };
+  const t = todayBerlin();
+  const opts = [["Heute", t], ["Morgen", addDays(t, 1)], ["Sa", nextWeekday(addDays(t, 1), 6)], ["So", nextWeekday(addDays(t, 1), 0)]];
+  return el("div", { class: "date-quick" }, opts.map(([label, d]) => el("button", { type: "button", class: "chip", onclick: () => set(d) }, label)));
 }

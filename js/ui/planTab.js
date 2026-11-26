@@ -1,5 +1,5 @@
 // Reiter „Planen“: Einstieg über die Reiseart, danach passt sich die Planung an.
-import { el, clear, busy, toast, spinnerLine, errorLine, extLink, direktLink, bahnLink, durationSelect, optionSelect, DURATIONS } from "./dom.js";
+import { el, clear, busy, toast, spinnerLine, errorLine, extLink, direktLink, bahnLink, dateQuick, durationSelect, optionSelect, DURATIONS } from "./dom.js";
 import { stopList } from "./stopList.js";
 import { timeScale } from "./timeScale.js";
 import { cityName } from "../planner/booking.js";
@@ -87,6 +87,7 @@ function dayForm() {
   const go = el("button", { class: "btn primary block" }, "Ziele finden");
   formBox.append(
     el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Datum"), date), el("div", { class: "field" }, el("label", {}, "Los ab"), dep), el("div", { class: "field" }, el("label", {}, "Zurück bis"), back)),
+    dateQuick(date),
     el("div", { class: "row" }, el("div", { class: "field" }, el("label", {}, "Max. Fahrzeit je Richtung"), maxOne), el("div", { class: "field" }, el("label", {}, "Min. Aufenthalt"), minStay)),
     go);
   go.onclick = () => {
